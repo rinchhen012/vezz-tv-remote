@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- remote body -->
+    <path
+        android:fillColor="#8B7CFF"
+        android:pathData="M40,20 h28 a10,10 0 0 1 10,10 v48 a10,10 0 0 1 -10,10 h-28 a10,10 0 0 1 -10,-10 v-48 a10,10 0 0 1 10,-10 z" />
+    <!-- d-pad ring -->
+    <path
+        android:fillColor="#101014"
+        android:pathData="M54,32 m-13,0 a13,13 0 1 0 26,0 a13,13 0 1 0 -26,0" />
+    <path
+        android:fillColor="#8B7CFF"
+        android:pathData="M54,23 l4,7 h-8 z M54,41 l-4,-7 h8 z M45,32 l7,-4 v8 z M63,32 l-7,4 v-8 z" />
+    <!-- buttons -->
+    <path
+        android:fillColor="#101014"
+        android:pathData="M45,56 h6 v6 h-6 z M57,56 h6 v6 h-6 z M45,66 h6 v6 h-6 z M57,66 h6 v6 h-6 z" />
+</vector>
