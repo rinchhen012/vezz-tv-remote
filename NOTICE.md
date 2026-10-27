@@ -55,3 +55,29 @@ The full MIT license text for the adapted certificate helper is in
   launcher's `AppLaunchActivity` handles `market://launch?id=<package>`, which
   makes one-tap app shortcuts possible.
   https://github.com/Gathin23/cleanyourtv
+
+## Typefaces
+
+- **Space Grotesk** — SIL Open Font License 1.1, Florian Karsten. Bundled in
+  `app/src/main/res/font/space_grotesk.ttf`.
+  License: `LICENSES/SpaceGrotesk-OFL.txt`.
+- **IBM Plex Mono** — SIL Open Font License 1.1, IBM. Bundled in
+  `app/src/main/res/font/ibm_plex_mono_*.ttf`.
+  License: `LICENSES/IBMPlexMono-OFL.txt`.
+
+## Design references
+
+These informed the 0.3.0 Swiss industrial design pass; they are not runtime
+dependencies or code copied into the app.
+
+- **nextlevelbuilder/ui-ux-pro-max-skill** — MIT License. Used as a local design
+  reference for the Swiss/minimal style, Space Grotesk typography guidance and
+  48 dp touch-target rules. Its generic indigo/Inter output was deliberately not
+  used.
+  https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
+
+- **pbakaus/impeccable** — Apache License 2.0. Used for its craft-floor and native
+  Android design critique (no glass/gradient decoration, no lazy cards, explicit
+  interaction states, 48 dp targets). Its web detector does not lint Compose.
+  https://github.com/pbakaus/impeccable
+

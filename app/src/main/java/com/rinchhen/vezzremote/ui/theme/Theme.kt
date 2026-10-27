@@ -6,141 +6,201 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rinchhen.vezzremote.R
 
-val VezzBackground = Color(0xFF08080C)
-val VezzSurface = Color(0xFF121218)
-val VezzSurfaceElevated = Color(0xFF1A1A23)
-val VezzPrimary = Color(0xFF8B7CFF)
-val VezzPrimaryBright = Color(0xFFB6A8FF)
-val VezzTeal = Color(0xFF5EEAD4)
-val VezzAmber = Color(0xFFFFB86B)
-val VezzRed = Color(0xFFFF6B6B)
+val Ink0 = Color(0xFF0A0A0B)
+val Ink1 = Color(0xFF121211)
+val Ink2 = Color(0xFF171716)
+val Line = Color(0xFF2A2A27)
+val LineStrong = Color(0xFF3A3A35)
+val Paper = Color(0xFFECEAE3)
+val PaperMuted = Color(0xFF9A978C)
+val PaperFaint = Color(0xFF88867D)
+val Acid = Color(0xFFC7F464)
+val OnAcid = Color(0xFF10120A)
+val Danger = Color(0xFFFF5C4D)
+val Warning = Color(0xFFFFB454)
+
+@OptIn(ExperimentalTextApi::class)
+val SpaceGrotesk = FontFamily(
+    Font(
+        R.font.space_grotesk,
+        weight = FontWeight.Normal,
+        style = FontStyle.Normal,
+        variationSettings = FontVariation.Settings(FontVariation.weight(400)),
+    ),
+    Font(
+        R.font.space_grotesk,
+        weight = FontWeight.Medium,
+        style = FontStyle.Normal,
+        variationSettings = FontVariation.Settings(FontVariation.weight(500)),
+    ),
+    Font(
+        R.font.space_grotesk,
+        weight = FontWeight.SemiBold,
+        style = FontStyle.Normal,
+        variationSettings = FontVariation.Settings(FontVariation.weight(600)),
+    ),
+    Font(
+        R.font.space_grotesk,
+        weight = FontWeight.Bold,
+        style = FontStyle.Normal,
+        variationSettings = FontVariation.Settings(FontVariation.weight(700)),
+    ),
+)
+
+val PlexMono = FontFamily(
+    Font(R.font.ibm_plex_mono_regular, FontWeight.Normal),
+    Font(R.font.ibm_plex_mono_medium, FontWeight.Medium),
+    Font(R.font.ibm_plex_mono_semibold, FontWeight.SemiBold),
+)
 
 private val VezzColors = darkColorScheme(
-    primary = VezzPrimary,
-    onPrimary = Color(0xFF100E1F),
-    primaryContainer = Color(0xFF2B2650),
-    onPrimaryContainer = Color(0xFFEAE5FF),
-    secondary = VezzTeal,
-    onSecondary = Color(0xFF042F2E),
-    secondaryContainer = Color(0xFF123B38),
-    onSecondaryContainer = Color(0xFFC9FFF8),
-    tertiary = VezzAmber,
-    onTertiary = Color(0xFF2A1802),
-    background = VezzBackground,
-    onBackground = Color(0xFFF5F3FF),
-    surface = VezzSurface,
-    onSurface = Color(0xFFF5F3FF),
-    surfaceVariant = VezzSurfaceElevated,
-    onSurfaceVariant = Color(0xFFB8B4C8),
-    outline = Color(0xFF343441),
-    outlineVariant = Color(0xFF24242E),
-    error = VezzRed,
-    onError = Color(0xFF2A0505),
-    errorContainer = Color(0xFF3B1418),
-    onErrorContainer = Color(0xFFFFDAD6),
+    primary = Acid,
+    onPrimary = OnAcid,
+    primaryContainer = Color(0xFF2A3312),
+    onPrimaryContainer = Acid,
+    secondary = PaperMuted,
+    onSecondary = Ink0,
+    secondaryContainer = Ink2,
+    onSecondaryContainer = Paper,
+    tertiary = Warning,
+    onTertiary = Ink0,
+    background = Ink0,
+    onBackground = Paper,
+    surface = Ink1,
+    onSurface = Paper,
+    surfaceVariant = Ink2,
+    onSurfaceVariant = PaperMuted,
+    surfaceTint = Acid,
+    outline = Line,
+    outlineVariant = Line,
+    error = Danger,
+    onError = OnAcid,
+    errorContainer = Color(0xFF3A1410),
+    onErrorContainer = Color(0xFFFFDAD4),
+    scrim = Color(0xCC000000),
 )
 
 private val VezzTypography = Typography(
-    displaySmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+    displayLarge = TextStyle(
+        fontFamily = SpaceGrotesk,
         fontWeight = FontWeight.Bold,
-        fontSize = 34.sp,
+        fontSize = 38.sp,
+        lineHeight = 42.sp,
         letterSpacing = (-0.8).sp,
     ),
-    headlineMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+    displayMedium = TextStyle(
+        fontFamily = SpaceGrotesk,
+        fontWeight = FontWeight.Bold,
+        fontSize = 32.sp,
+        lineHeight = 36.sp,
+        letterSpacing = (-0.6).sp,
+    ),
+    displaySmall = TextStyle(
+        fontFamily = SpaceGrotesk,
         fontWeight = FontWeight.Bold,
         fontSize = 28.sp,
-        letterSpacing = (-0.5).sp,
+        lineHeight = 32.sp,
+        letterSpacing = (-0.4).sp,
     ),
-    headlineSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+    headlineLarge = TextStyle(
+        fontFamily = SpaceGrotesk,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 23.sp,
+        fontSize = 26.sp,
+        lineHeight = 30.sp,
+        letterSpacing = (-0.3).sp,
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = SpaceGrotesk,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 22.sp,
+        lineHeight = 27.sp,
         letterSpacing = (-0.2).sp,
     ),
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+    headlineSmall = TextStyle(
+        fontFamily = SpaceGrotesk,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
+        fontSize = 19.sp,
+        lineHeight = 24.sp,
         letterSpacing = (-0.1).sp,
     ),
-    titleMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+    titleLarge = TextStyle(
+        fontFamily = SpaceGrotesk,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp,
-        letterSpacing = 0.sp,
+        fontSize = 18.sp,
+        lineHeight = 23.sp,
+    ),
+    titleMedium = TextStyle(
+        fontFamily = SpaceGrotesk,
+        fontWeight = FontWeight.Medium,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
     ),
     titleSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 14.sp,
+        fontFamily = SpaceGrotesk,
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
     ),
     bodyLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = SpaceGrotesk,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 23.sp,
     ),
     bodyMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = SpaceGrotesk,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp,
     ),
     bodySmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = SpaceGrotesk,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 17.sp,
     ),
     labelLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 14.sp,
-        letterSpacing = 0.1.sp,
-    ),
-    labelMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = PlexMono,
         fontWeight = FontWeight.Medium,
         fontSize = 12.sp,
-        letterSpacing = 0.2.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.8.sp,
     ),
-    labelSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+    labelMedium = TextStyle(
+        fontFamily = PlexMono,
         fontWeight = FontWeight.Medium,
         fontSize = 10.sp,
-        letterSpacing = 0.4.sp,
+        lineHeight = 14.sp,
+        letterSpacing = 0.8.sp,
+    ),
+    labelSmall = TextStyle(
+        fontFamily = PlexMono,
+        fontWeight = FontWeight.Medium,
+        fontSize = 9.sp,
+        lineHeight = 13.sp,
+        letterSpacing = 1.sp,
     ),
 )
 
 private val VezzShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(20.dp),
-    large = RoundedCornerShape(28.dp),
-    extraLarge = RoundedCornerShape(36.dp),
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(20.dp),
 )
-
-object VezzGradients {
-    val primary = Brush.linearGradient(listOf(Color(0xFF8B7CFF), Color(0xFFC0B4FF)))
-    val primarySoft = Brush.linearGradient(
-        listOf(Color(0xFF8B7CFF).copy(alpha = 0.22f), Color(0xFF8B7CFF).copy(alpha = 0.04f)),
-    )
-    val teal = Brush.linearGradient(listOf(Color(0xFF2DD4BF), Color(0xFF7CF5E7)))
-    val power = Brush.linearGradient(listOf(Color(0xFFFF6B6B), Color(0xFFFFA36B)))
-    val glow = Brush.radialGradient(
-        colors = listOf(Color(0xFF8B7CFF).copy(alpha = 0.16f), Color.Transparent),
-    )
-}
 
 @Composable
 fun VezzRemoteTheme(content: @Composable () -> Unit) {

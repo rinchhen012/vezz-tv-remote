@@ -11,13 +11,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,16 +25,22 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.rinchhen.vezzremote.data.TvDevice
 import com.rinchhen.vezzremote.protocol.RemoteClient
-import com.rinchhen.vezzremote.ui.components.GhostButton
-import com.rinchhen.vezzremote.ui.components.GlassCard
-import com.rinchhen.vezzremote.ui.components.SectionHeader
+import com.rinchhen.vezzremote.ui.components.Hairline
+import com.rinchhen.vezzremote.ui.components.AccentButton
+import com.rinchhen.vezzremote.ui.components.PageTitle
+import com.rinchhen.vezzremote.ui.components.Panel
+import com.rinchhen.vezzremote.ui.components.SectionLabel
 import com.rinchhen.vezzremote.ui.components.StatusDot
-import com.rinchhen.vezzremote.ui.theme.VezzTeal
+import com.rinchhen.vezzremote.ui.theme.Acid
+import com.rinchhen.vezzremote.ui.theme.Line
+import com.rinchhen.vezzremote.ui.theme.OnAcid
+import com.rinchhen.vezzremote.ui.theme.Paper
+import com.rinchhen.vezzremote.ui.theme.PaperFaint
+import com.rinchhen.vezzremote.ui.theme.PaperMuted
 
 @Composable
 fun SettingsContent(
@@ -60,83 +64,89 @@ fun SettingsContent(
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            GlassCard(contentPadding = PaddingValues(18.dp)) {
+            PageTitle(
+                title = "Settings",
+                subtitle = "Local only",
+            )
+        }
+
+        item {
+            SectionLabel(text = "Device")
+        }
+        item {
+            Panel(contentPadding = PaddingValues(16.dp)) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Device", style = MaterialTheme.typography.labelMedium)
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
-                            activeDevice?.name ?: "No TV connected",
+                            activeDevice?.name ?: "NO TV",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            color = Paper,
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                             StatusDot(
-                                if (remoteState is RemoteClient.State.Connected) VezzTeal
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                if (remoteState is RemoteClient.State.Connected) Acid else PaperFaint,
                             )
                             Text(
                                 when (remoteState) {
-                                    is RemoteClient.State.Connected -> "Connected"
-                                    is RemoteClient.State.Connecting -> "Connecting…"
-                                    is RemoteClient.State.Error -> "Offline"
-                                    RemoteClient.State.Disconnected -> "Not connected"
+                                    is RemoteClient.State.Connected -> "CONNECTED"
+                                    is RemoteClient.State.Connecting -> "CONNECTING"
+                                    is RemoteClient.State.Error -> "OFFLINE"
+                                    RemoteClient.State.Disconnected -> "NOT CONNECTED"
                                 },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = PaperMuted,
                             )
                         }
                     }
-                    GhostButton(
-                        text = "Manage",
-                        icon = Icons.Default.Tv,
-                        onClick = onOpenDevices,
-                    )
+                    TextButton(onClick = onOpenDevices) {
+                        Text("MANAGE", style = MaterialTheme.typography.labelSmall, color = Acid)
+                    }
                 }
             }
         }
 
         item {
-            GlassCard(contentPadding = PaddingValues(18.dp)) {
-                Text("This phone", style = MaterialTheme.typography.labelMedium)
+            SectionLabel(text = "This phone")
+        }
+        item {
+            Panel(contentPadding = PaddingValues(16.dp)) {
+                Text(clientName, style = MaterialTheme.typography.bodyLarge, color = Paper)
                 Text(
-                    clientName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-                Text(
-                    "Pairing identity: $identityStorage",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
+                    "PAIRING IDENTITY · $identityStorage",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PaperMuted,
+                    modifier = Modifier.padding(top = 5.dp),
                 )
                 Text(
                     "Each install gets a unique certificate name. The TV keeps one pairing per name, so pairing another phone does not remove this one.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 6.dp),
+                    color = PaperFaint,
+                    modifier = Modifier.padding(top = 5.dp),
                 )
             }
         }
 
         item {
-            GlassCard(contentPadding = PaddingValues(0.dp)) {
+            SectionLabel(text = "Appearance")
+        }
+        item {
+            Panel(contentPadding = PaddingValues(0.dp)) {
                 SwitchRow(
                     title = "Haptic feedback",
-                    subtitle = "A light tap on every remote key",
+                    subtitle = "Light tick on every key",
                     checked = haptics,
                     onCheckedChange = onHaptics,
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Hairline()
                 SwitchRow(
                     title = "Left-handed layout",
-                    subtitle = "Put the volume column on the right",
+                    subtitle = "Volume on the right",
                     checked = leftHanded,
                     onCheckedChange = onLeftHanded,
                 )
@@ -144,76 +154,89 @@ fun SettingsContent(
         }
 
         item {
-            SectionHeader(
-                title = "Paired TVs",
-                subtitle = if (paired.isEmpty()) "No TVs yet" else "${paired.size} saved",
-            )
+            SectionLabel(text = "Paired TVs")
         }
-
         if (paired.isEmpty()) {
             item {
                 Text(
-                    "Pair a TV from the Devices tab.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    "NO PAIRED TVS",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PaperMuted,
                 )
             }
         } else {
             items(paired, key = { it.id }) { device ->
-                GlassCard(contentPadding = PaddingValues(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(device.name, fontWeight = FontWeight.Medium)
-                            Text(
-                                device.host,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        TextButton(onClick = { onForget(device) }) { Text("Forget") }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(device.name, style = MaterialTheme.typography.titleMedium, color = Paper)
+                        Text(
+                            device.host,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PaperMuted,
+                        )
+                    }
+                    TextButton(onClick = { onForget(device) }) {
+                        Text("FORGET", style = MaterialTheme.typography.labelSmall, color = PaperMuted)
                     }
                 }
+                Hairline()
             }
         }
 
         item {
-            GlassCard(contentPadding = PaddingValues(18.dp)) {
-                Text("Developer: app link", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            SectionLabel(text = "Developer")
+        }
+        item {
+            Panel(contentPadding = PaddingValues(16.dp)) {
                 Text(
-                    "Test what this TV accepts from the remote protocol.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
+                    "APP LINK",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PaperMuted,
                 )
                 OutlinedTextField(
                     value = testLink,
                     onValueChange = { testLink = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 10.dp),
-                    label = { Text("App link") },
+                        .padding(top = 8.dp),
+                    label = { Text("URI", style = MaterialTheme.typography.labelSmall) },
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(10.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Acid,
+                        unfocusedBorderColor = Line,
+                        cursorColor = Acid,
+                        focusedTextColor = Paper,
+                        unfocusedTextColor = Paper,
+                    ),
                 )
-                Button(
+                AccentButton(
+                    text = "Send link",
                     onClick = { onSendLink(testLink) },
                     enabled = testLink.isNotBlank(),
-                    modifier = Modifier.padding(top = 10.dp),
-                ) {
-                    Text("Send link")
-                }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                )
             }
         }
 
         item {
-            GlassCard(contentPadding = PaddingValues(18.dp)) {
-                Text("About", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text("VEZZ Remote 0.2.0", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+            SectionLabel(text = "About")
+        }
+        item {
+            Panel(contentPadding = PaddingValues(16.dp)) {
+                Text("VEZZ REMOTE 0.3.0", style = MaterialTheme.typography.labelLarge, color = Paper)
                 Text(
                     "Android TV Remote protocol v2 over TLS. No accounts, analytics, ads or cloud service.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = PaperFaint,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
@@ -232,18 +255,28 @@ private fun SwitchRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 18.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = Paper)
             Text(
                 subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
+                color = PaperMuted,
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = OnAcid,
+                checkedTrackColor = Acid,
+                uncheckedThumbColor = PaperMuted,
+                uncheckedTrackColor = Line,
+                uncheckedBorderColor = Line,
+            ),
+        )
     }
 }

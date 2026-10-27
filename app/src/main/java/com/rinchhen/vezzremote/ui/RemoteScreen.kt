@@ -1,28 +1,26 @@
 package com.rinchhen.vezzremote.ui
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,7 +33,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,22 +40,27 @@ import com.rinchhen.vezzremote.data.TvApp
 import com.rinchhen.vezzremote.data.TvDevice
 import com.rinchhen.vezzremote.protocol.RemoteClient
 import com.rinchhen.vezzremote.protocol.RemoteKey
+import com.rinchhen.vezzremote.ui.components.AccentButton
 import com.rinchhen.vezzremote.ui.components.ActionGrid
 import com.rinchhen.vezzremote.ui.components.AppIcon
 import com.rinchhen.vezzremote.ui.components.Dpad
 import com.rinchhen.vezzremote.ui.components.FavoriteAppsRow
-import com.rinchhen.vezzremote.ui.components.GhostButton
-import com.rinchhen.vezzremote.ui.components.GlassCard
-import com.rinchhen.vezzremote.ui.components.GradientButton
 import com.rinchhen.vezzremote.ui.components.HdmiRow
 import com.rinchhen.vezzremote.ui.components.KeyboardSheet
 import com.rinchhen.vezzremote.ui.components.MediaControls
-import com.rinchhen.vezzremote.ui.components.SectionHeader
-import com.rinchhen.vezzremote.ui.components.StatPill
+import com.rinchhen.vezzremote.ui.components.MonoTag
+import com.rinchhen.vezzremote.ui.components.OutlineButton
+import com.rinchhen.vezzremote.ui.components.Panel
+import com.rinchhen.vezzremote.ui.components.SectionLabel
 import com.rinchhen.vezzremote.ui.components.StatusDot
-import com.rinchhen.vezzremote.ui.components.VolumeCard
-import com.rinchhen.vezzremote.ui.theme.VezzGradients
-import com.rinchhen.vezzremote.ui.theme.VezzTeal
+import com.rinchhen.vezzremote.ui.components.VolumeRocker
+import com.rinchhen.vezzremote.ui.theme.Acid
+import com.rinchhen.vezzremote.ui.theme.Danger
+import com.rinchhen.vezzremote.ui.theme.Line
+import com.rinchhen.vezzremote.ui.theme.Paper
+import com.rinchhen.vezzremote.ui.theme.PaperFaint
+import com.rinchhen.vezzremote.ui.theme.PaperMuted
+import com.rinchhen.vezzremote.ui.theme.PlexMono
 
 @Composable
 fun RemoteContent(
@@ -80,28 +82,25 @@ fun RemoteContent(
 ) {
     var showKeyboard by rememberSaveable { mutableStateOf(false) }
     var showPowerConfirm by rememberSaveable { mutableStateOf(false) }
-
     val view = LocalView.current
+
     DisposableEffect(Unit) {
         view.keepScreenOn = true
         onDispose { view.keepScreenOn = false }
     }
 
-    val connected = state is RemoteClient.State.Connected
     val current = apps.firstOrNull { it.packageName == currentApp }
+    val connected = state is RemoteClient.State.Connected
+    val error = state as? RemoteClient.State.Error
+    val disconnected = state is RemoteClient.State.Disconnected
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 20.dp,
-            end = 20.dp,
-            top = 4.dp,
-            bottom = 28.dp,
-        ),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            NowPlayingCard(
+            StatusStrip(
                 device = device,
                 state = state,
                 volume = volume,
@@ -113,17 +112,31 @@ fun RemoteContent(
         }
 
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (leftHanded) {
-                    Dpad(onKey = onKey, haptics = haptics)
-                    VolumeCard(volume = volume, onKey = onKey, haptics = haptics)
-                } else {
-                    VolumeCard(volume = volume, onKey = onKey, haptics = haptics)
-                    Dpad(onKey = onKey, haptics = haptics)
+            Panel(contentPadding = PaddingValues(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (leftHanded) {
+                        Dpad(onKey = onKey, haptics = haptics)
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(196.dp)
+                                .background(Line),
+                        )
+                        VolumeRocker(volume = volume, onKey = onKey, haptics = haptics)
+                    } else {
+                        VolumeRocker(volume = volume, onKey = onKey, haptics = haptics)
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(196.dp)
+                                .background(Line),
+                        )
+                        Dpad(onKey = onKey, haptics = haptics)
+                    }
                 }
             }
         }
@@ -143,22 +156,24 @@ fun RemoteContent(
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                GradientButton(
+                AccentButton(
                     text = "Keyboard",
-                    icon = Icons.Default.Keyboard,
+                    icon = Icons.Outlined.Keyboard,
                     onClick = { showKeyboard = true },
                     modifier = Modifier.weight(1f),
+                    haptics = haptics,
                 )
-                GhostButton(
+                OutlineButton(
                     text = "Search",
-                    icon = Icons.Default.Search,
+                    icon = Icons.Outlined.Search,
                     onClick = {
                         onKey(RemoteKey.Search)
                         showKeyboard = true
                     },
                     modifier = Modifier.weight(1f),
+                    haptics = haptics,
                 )
             }
         }
@@ -173,10 +188,7 @@ fun RemoteContent(
         }
 
         item {
-            SectionHeader(
-                title = "Inputs",
-                subtitle = "Jump straight to a source",
-            )
+            SectionLabel(text = "Inputs")
         }
 
         item {
@@ -196,25 +208,29 @@ fun RemoteContent(
     if (showPowerConfirm) {
         AlertDialog(
             onDismissRequest = { showPowerConfirm = false },
-            title = { Text("Turn off the TV?") },
-            text = { Text("This sends the power key. Wake-on-LAN is not enabled in this build.") },
+            title = { Text("POWER OFF", style = MaterialTheme.typography.labelLarge) },
+            text = { Text("Send the power key to the TV?") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showPowerConfirm = false
                         onKey(RemoteKey.Power)
                     },
-                ) { Text("Power off") }
+                ) {
+                    Text("POWER OFF", color = Danger, style = MaterialTheme.typography.labelMedium)
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showPowerConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showPowerConfirm = false }) {
+                    Text("CANCEL", style = MaterialTheme.typography.labelMedium)
+                }
             },
         )
     }
 }
 
 @Composable
-private fun NowPlayingCard(
+private fun StatusStrip(
     device: TvDevice?,
     state: RemoteClient.State,
     volume: RemoteClient.VolumeState,
@@ -229,127 +245,139 @@ private fun NowPlayingCard(
     val label = current?.label ?: appLabel(currentApp)
     val fraction = if (volume.max > 0) (volume.level.toFloat() / volume.max).coerceIn(0f, 1f) else 0f
 
-    GlassCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp)) {
+    Panel(contentPadding = PaddingValues(14.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (current == null && currentApp.isBlank()) {
                 Box(
                     modifier = Modifier
-                        .size(62.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(VezzGradients.primary),
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, Line, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.Tv, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                    Icon(Icons.Outlined.Tv, contentDescription = null, tint = PaperMuted, modifier = Modifier.size(22.dp))
                 }
             } else {
                 AppIcon(
                     app = current,
                     packageName = currentApp,
                     label = null,
-                    size = 62.dp,
+                    size = 46.dp,
                     showRunning = connected,
                 )
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                AnimatedContent(
-                    targetState = label,
-                    transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
-                    label = "current-app",
-                ) { animatedLabel ->
-                    Text(
-                        animatedLabel,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                    )
-                }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     StatusDot(
                         color = when {
-                            connected -> VezzTeal
-                            error != null -> MaterialTheme.colorScheme.error
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            connected -> Acid
+                            error != null -> Danger
+                            else -> PaperFaint
                         },
                     )
                     Text(
                         when {
-                            connected -> if (isOn) "Connected · screen on" else "Connected · standby"
-                            error != null -> "Offline"
-                            disconnected -> "Not connected"
-                            else -> "Connecting…"
+                            connected -> if (isOn) "CONNECTED · SCREEN ON" else "CONNECTED · STANDBY"
+                            error != null -> "OFFLINE"
+                            disconnected -> "NOT CONNECTED"
+                            else -> "CONNECTING…"
                         },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = PaperMuted,
                     )
                 }
             }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
-                    if (volume.muted) "Muted" else if (volume.level >= 0) "${volume.level}/${volume.max}" else "—",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (volume.muted) MaterialTheme.colorScheme.error else VezzTeal,
+                    if (volume.level >= 0) "%02d".format(volume.level) else "—",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontFamily = PlexMono),
+                    color = if (volume.muted) Danger else Paper,
                 )
                 Text(
-                    "volume",
+                    if (volume.muted) "MUTED" else if (volume.max > 0) "VOL / ${volume.max}" else "VOL",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = PaperMuted,
                 )
             }
         }
 
         if (volume.level >= 0) {
-            LinearProgressIndicator(
-                progress = { fraction },
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 14.dp),
-                color = VezzTeal,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
+                    .padding(top = 12.dp)
+                    .height(2.dp)
+                    .background(Line),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction)
+                        .height(2.dp)
+                        .background(Acid),
+                )
+            }
         }
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StatPill(device?.name ?: "TV")
-            StatPill(if (isOn) "Screen on" else "Standby")
+            MonoTag(device?.name ?: "TV")
+            MonoTag(if (isOn) "SCREEN ON" else "STANDBY")
             Spacer(modifier = Modifier.weight(1f))
             if (error != null || disconnected) {
-                TextButton(onClick = onReconnect) { Text("Reconnect") }
+                TextButton(onClick = onReconnect) {
+                    Text("RECONNECT", style = MaterialTheme.typography.labelSmall, color = Acid)
+                }
             }
         }
 
         if (error != null) {
             Text(
-                error.message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                friendlyError(error.message),
+                style = MaterialTheme.typography.labelSmall,
+                color = Danger,
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
     }
 }
 
+private fun friendlyError(message: String): String = when {
+    message.contains("failed to connect", ignoreCase = true) ||
+        message.contains("timed out", ignoreCase = true) ||
+        message.contains("unreachable", ignoreCase = true) ->
+        "TV UNREACHABLE — CHECK POWER AND WI-FI"
+    message.contains("certificate", ignoreCase = true) ->
+        "TV CERTIFICATE CHANGED — FORGET AND PAIR AGAIN"
+    else -> message.uppercase()
+}
+
 private fun appLabel(packageName: String): String = when (packageName) {
-    "" -> "Ready"
+    "" -> "READY"
     "com.netflix.ninja" -> "Netflix"
     "org.smarttube.stable" -> "SmartTube"
     "com.google.android.youtube.tv" -> "YouTube"
     "com.amazon.amazonvideo.livingroom" -> "Prime Video"
     "com.disney.disneyplus" -> "Disney+"
     "org.xbmc.kodi" -> "Kodi"
-    "com.android.tv.settings" -> "TV settings"
-    "com.gathin.tvhome" -> "VEZZ home"
+    "com.android.tv.settings" -> "TV Settings"
+    "com.gathin.tvhome" -> "VEZZ Home"
     else -> packageName.substringAfterLast('.').replaceFirstChar { it.uppercase() }
 }

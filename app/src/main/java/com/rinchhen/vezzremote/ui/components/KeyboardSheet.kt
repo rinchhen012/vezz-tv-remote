@@ -1,23 +1,18 @@
 package com.rinchhen.vezzremote.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -27,14 +22,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.rinchhen.vezzremote.ui.theme.VezzGradients
+import com.rinchhen.vezzremote.ui.theme.Acid
+import com.rinchhen.vezzremote.ui.theme.Ink1
+import com.rinchhen.vezzremote.ui.theme.Line
+import com.rinchhen.vezzremote.ui.theme.Paper
+import com.rinchhen.vezzremote.ui.theme.PaperMuted
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +47,7 @@ fun KeyboardSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = Ink1,
     ) {
         Column(
             modifier = Modifier
@@ -62,44 +58,44 @@ fun KeyboardSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(VezzGradients.primary),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Default.Keyboard, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Type on the TV", style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        "Focus a text field on the TV first, then type here.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
+            Text(
+                "KEYBOARD",
+                style = MaterialTheme.typography.labelSmall,
+                color = PaperMuted,
+            )
+            Text(
+                "TYPE ON THE TV",
+                style = MaterialTheme.typography.headlineMedium,
+                color = Paper,
+            )
+            Text(
+                "Focus a text field on the TV first.",
+                style = MaterialTheme.typography.bodySmall,
+                color = PaperMuted,
+            )
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester),
-                label = { Text("Text to send") },
+                label = { Text("TEXT", style = MaterialTheme.typography.labelSmall) },
                 placeholder = { Text("Search, password, or message…") },
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(10.dp),
                 minLines = 2,
                 maxLines = 5,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Acid,
+                    unfocusedBorderColor = Line,
+                    cursorColor = Acid,
+                    focusedLabelColor = Acid,
+                    unfocusedLabelColor = PaperMuted,
+                    focusedTextColor = Paper,
+                    unfocusedTextColor = Paper,
+                ),
             )
-
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GradientButton(
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AccentButton(
                     text = "Send",
                     onClick = {
                         onSend(text)
@@ -108,7 +104,7 @@ fun KeyboardSheet(
                     enabled = text.isNotBlank(),
                     modifier = Modifier.weight(1f),
                 )
-                GhostButton(
+                OutlineButton(
                     text = "Send + Enter",
                     onClick = {
                         onSendAndEnter(text)
@@ -118,13 +114,16 @@ fun KeyboardSheet(
                     modifier = Modifier.weight(1f),
                 )
             }
-
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                TextButton(onClick = onClear) { Text("Clear TV field") }
-                TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Done") }
+                TextButton(onClick = onClear) {
+                    Text("CLEAR TV FIELD", style = MaterialTheme.typography.labelSmall, color = PaperMuted)
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                    Text("DONE", style = MaterialTheme.typography.labelSmall, color = Acid)
+                }
             }
         }
     }

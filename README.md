@@ -2,7 +2,7 @@
 
 A small, local-only Android remote for the **HKC / VEZZ "4K SA Google TV"** in this house. It uses Google's **Android TV Remote protocol v2** over Wi-Fi — the same protocol as the official Google TV app — so there is no IR blaster, Bluetooth pairing, root, or ADB needed at runtime.
 
-**Download:** [VEZZ Remote 0.2.0 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.2.0) (debug-signed sideload build).
+**Download:** [VEZZ Remote 0.3.0 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.0) (debug-signed sideload build).
 
 The app was built because the supplied Bluetooth remote is slow to wake and its buttons need a hard press. This remote keeps one TLS connection open, has large touch targets, and lets you type on the phone's keyboard.
 
@@ -28,7 +28,9 @@ Tested against the HKC/VEZZ TV:
 - SmartTube launch through `market://launch`, and Netflix through DIAL.
 - Manual IP pairing from an emulator. mDNS discovery is implemented but still to be checked on a real phone.
 
-The Apps tab is now a searchable grid with categories, favorites and a refresh action. It reads the full app list and real icons from the TV catalog endpoint described in [`docs/TV_CATALOG.md`](docs/TV_CATALOG.md), caching the icons on the phone. Until that endpoint is installed, it falls back to the bundled list and gradient letter tiles.
+The Apps tab is a searchable grid with categories, favorites and a refresh action. It reads the full app list and real icons from the TV catalog endpoint described in [`docs/TV_CATALOG.md`](docs/TV_CATALOG.md), caching the icons on the phone. Until that endpoint is installed, it falls back to the bundled list and neutral letter tiles.
+
+0.3.0 replaces the glass/purple skin with a Swiss industrial control surface: flat graphite panels, hairlines, acid-lime accent, Space Grotesk + IBM Plex Mono, tactile keys, and no decorative gradients. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
 
 Still to verify on the physical phones/TV:
 
@@ -46,12 +48,12 @@ Still to verify on the physical phones/TV:
 
 ## Install (sideload)
 
-1. Copy `dist/vezz-remote-0.2.0.apk` to the phone (or use `adb install -r`).
+1. Copy `dist/vezz-remote-0.3.0.apk` to the phone (or use `adb install -r`).
 2. Open the APK and allow installs from that source when prompted.
 3. Turn the TV on and make sure the phone is on the same Wi-Fi.
 
 ```bash
-adb install -r dist/vezz-remote-0.2.0.apk
+adb install -r dist/vezz-remote-0.3.0.apk
 ```
 
 The APK is signed with the standard Android debug key. That is fine for a personal sideload; it is not a Play Store release.
@@ -134,6 +136,9 @@ app/src/main/java/com/rinchhen/vezzremote/
 └── ui/            Compose screens and remote controls
 app/src/main/proto/  Pairing and remote protobuf schemas
 docs/                TV app catalog contract
+PRODUCT.md           Product context and operating scene
+DESIGN.md            Swiss industrial design system and tokens
+LICENSES/            Apache-2.0, MIT, and font OFL texts
 ```
 
 ## Security and privacy

@@ -10,14 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,12 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -48,9 +42,15 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.rinchhen.vezzremote.data.TvDevice
 import com.rinchhen.vezzremote.ui.MainViewModel.PairingState
-import com.rinchhen.vezzremote.ui.components.GhostButton
-import com.rinchhen.vezzremote.ui.components.GradientButton
-import com.rinchhen.vezzremote.ui.theme.VezzGradients
+import com.rinchhen.vezzremote.ui.components.AccentButton
+import com.rinchhen.vezzremote.ui.components.Hairline
+import com.rinchhen.vezzremote.ui.theme.Acid
+import com.rinchhen.vezzremote.ui.theme.Danger
+import com.rinchhen.vezzremote.ui.theme.Ink1
+import com.rinchhen.vezzremote.ui.theme.Ink2
+import com.rinchhen.vezzremote.ui.theme.Line
+import com.rinchhen.vezzremote.ui.theme.Paper
+import com.rinchhen.vezzremote.ui.theme.PaperMuted
 
 @Composable
 fun PairingDialog(
@@ -69,19 +69,19 @@ fun PairingDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp),
-            shape = RoundedCornerShape(32.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+            shape = RoundedCornerShape(16.dp),
+            color = Ink1,
+            border = androidx.compose.foundation.BorderStroke(1.dp, Line),
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 when (state) {
                     PairingState.Idle -> Unit
                     is PairingState.Connecting -> BusyContent(
-                        title = "Pairing",
-                        message = "Starting pairing with ${state.device.name}…",
+                        title = "PAIR TV",
+                        message = "STARTING PAIRING WITH ${state.device.name.uppercase()}…",
                         onCancel = onCancel,
                     )
 
@@ -93,8 +93,8 @@ fun PairingDialog(
                     )
 
                     is PairingState.Verifying -> BusyContent(
-                        title = "Pairing",
-                        message = "Checking the code with ${state.device.name}…",
+                        title = "PAIR TV",
+                        message = "CHECKING THE CODE WITH ${state.device.name.uppercase()}…",
                         onCancel = onCancel,
                     )
 
@@ -111,27 +111,10 @@ fun PairingDialog(
 
 @Composable
 private fun PairHeader(title: String, subtitle: String) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(VezzGradients.primary),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Default.Tv, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title, style = MaterialTheme.typography.labelSmall, color = PaperMuted)
+        Text(subtitle, style = MaterialTheme.typography.headlineSmall, color = Paper)
+        Hairline(modifier = Modifier.padding(top = 6.dp))
     }
 }
 
@@ -145,30 +128,31 @@ private fun NeedsPinContent(
     var pin by rememberSaveable(device.id) { mutableStateOf("") }
 
     PairHeader(
-        title = "Pair with ${device.name}",
-        subtitle = "Enter the six-character code shown on the TV.",
+        title = "PAIR TV",
+        subtitle = device.name,
     )
-
+    Text(
+        "ENTER THE SIX-CHARACTER CODE FROM THE TV",
+        style = MaterialTheme.typography.labelSmall,
+        color = PaperMuted,
+    )
     PinCodeInput(
         value = pin,
         onValueChange = { pin = it },
     )
-
     if (error != null) {
         Text(
-            error,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
+            error.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = Danger,
         )
     }
-
     Text(
-        "This is a one-time pairing. The TV remembers this phone afterwards.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        "ONE-TIME PAIRING. THE TV REMEMBERS THIS PHONE.",
+        style = MaterialTheme.typography.labelSmall,
+        color = PaperMuted,
     )
-
-    GradientButton(
+    AccentButton(
         text = "Pair",
         enabled = pin.length == 6,
         onClick = { onSubmit(pin) },
@@ -178,7 +162,7 @@ private fun NeedsPinContent(
         onClick = onCancel,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text("Cancel")
+        Text("CANCEL", style = MaterialTheme.typography.labelSmall, color = PaperMuted)
     }
 }
 
@@ -207,7 +191,7 @@ private fun PinCodeInput(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .height(58.dp)
             .focusRequester(focusRequester),
         singleLine = true,
         keyboardOptions = KeyboardOptions(
@@ -219,7 +203,7 @@ private fun PinCodeInput(
         decorationBox = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
             ) {
                 repeat(6) { index ->
                     val character = value.getOrNull(index)?.toString().orEmpty()
@@ -227,37 +211,21 @@ private fun PinCodeInput(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(60.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Ink2)
                             .border(
-                                width = if (active) 1.5.dp else 1.dp,
-                                color = if (active) MaterialTheme.colorScheme.primary
-                                else Color.White.copy(alpha = 0.06f),
-                                shape = RoundedCornerShape(16.dp),
+                                width = 1.dp,
+                                color = if (active) Acid else Line,
+                                shape = RoundedCornerShape(8.dp),
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (character.isNotEmpty()) {
-                            Text(
-                                character,
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        } else if (active) {
-                            Box(
-                                modifier = Modifier
-                                    .width(2.dp)
-                                    .height(22.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(Brush.verticalGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary,
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                        ),
-                                    )),
-                            )
-                        }
+                        Text(
+                            character,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = Paper,
+                        )
                     }
                 }
             }
@@ -275,15 +243,15 @@ private fun BusyContent(
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(34.dp))
+        CircularProgressIndicator(modifier = Modifier.size(30.dp), color = Acid, strokeWidth = 2.dp)
     }
-    GhostButton(
-        text = "Cancel",
+    TextButton(
         onClick = onCancel,
         modifier = Modifier.fillMaxWidth(),
-    )
+    ) {
+        Text("CANCEL", style = MaterialTheme.typography.labelSmall, color = PaperMuted)
+    }
 }
 
 @Composable
@@ -292,16 +260,13 @@ private fun FailedContent(
     onRetry: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    PairHeader(
-        title = "Pairing failed",
-        subtitle = message,
-    )
+    PairHeader(title = "PAIRING FAILED", subtitle = message)
     Text(
-        "Tap Try again to start a fresh pairing. The TV will show a new code.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        "TRY AGAIN TO GET A FRESH CODE FROM THE TV.",
+        style = MaterialTheme.typography.labelSmall,
+        color = PaperMuted,
     )
-    GradientButton(
+    AccentButton(
         text = "Try again",
         onClick = onRetry,
         modifier = Modifier.fillMaxWidth(),
@@ -310,6 +275,6 @@ private fun FailedContent(
         onClick = onCancel,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text("Cancel")
+        Text("CANCEL", style = MaterialTheme.typography.labelSmall, color = PaperMuted)
     }
 }
