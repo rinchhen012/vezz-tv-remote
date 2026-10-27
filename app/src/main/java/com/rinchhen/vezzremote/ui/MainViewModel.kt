@@ -7,6 +7,10 @@ import com.rinchhen.vezzremote.AppContainer
 import com.rinchhen.vezzremote.VezzRemoteApp
 import com.rinchhen.vezzremote.data.ClientIdentity
 import com.rinchhen.vezzremote.data.ClientIdentityProvider
+import com.rinchhen.vezzremote.data.AppCatalog
+import com.rinchhen.vezzremote.data.AppIconCache
+import com.rinchhen.vezzremote.data.TvApp
+import com.rinchhen.vezzremote.data.TvCatalogClient
 import com.rinchhen.vezzremote.data.TvDevice
 import com.rinchhen.vezzremote.protocol.PairingClient
 import com.rinchhen.vezzremote.protocol.PairingCrypto
@@ -73,6 +77,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _repeatDelay = MutableStateFlow(store.repeatDelayMs)
     val repeatDelay = _repeatDelay.asStateFlow()
 
+    private val _apps = MutableStateFlow(AppCatalog.apps)
+    val apps = _apps.asStateFlow()
+
     val clientName: String get() = identity?.clientName ?: "Preparing phone identity…"
 
     val identityStorage: String
@@ -85,6 +92,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var remoteClient: RemoteClient? = null
     private var collectorJob: Job? = null
     private var connectJob: Job? = null
+    private var catalogJob: Job? = null
     private var pairingJob: Job? = null
     private var pendingPin: CompletableDeferred<String>? = null
     private var pairingDevice: TvDevice? = null
@@ -215,7 +223,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { client.isOn.collect { _isOn.value = it } }
         }
         connectJob = viewModelScope.launch {
-            client.connect()
+            if (client.connect()) refreshCatalog(device.host)
         }
     }
 
@@ -271,6 +279,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         remoteClient?.launchPackage(packageName)
     }
 
+    fun launchApp(app: TvApp) {
+        if (app.packageName == "com.netflix.ninja") {
+            launchDial("Netflix")
+        } else {
+            launchPackage(app.packageName)
+        }
+    }
+
+    fun refreshCatalog() {
+        refreshCatalog(_activeDevice.value?.host)
+    }
+
+    private fun refreshCatalog(host: String?) {
+        if (host.isNullOrBlank()) return
+        catalogJob?.cancel()
+        catalogJob = viewModelScope.launch(Dispatchers.IO) {
+            val remote = TvCatalogClient.fetch(host) ?: return@launch
+            val merged = remote.map { app ->
+                app.copy(
+                    favorite = app.favorite || AppCatalog.favorites.any { it.packageName == app.packageName },
+                )
+            }
+            val context = getApplication<Application>().applicationContext
+            merged.forEach { app ->
+                AppIconCache.ensure(context, host, app.packageName)
+            }
+            withContext(Dispatchers.Main) {
+                _apps.value = merged
+            }
+        }
+    }
+
     fun launchDial(appName: String) {
         val host = _activeDevice.value?.host ?: return
         viewModelScope.launch {
@@ -305,6 +345,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         discovery.stop()
+        catalogJob?.cancel()
         remoteClient?.disconnect()
         super.onCleared()
     }

@@ -1,58 +1,67 @@
 package com.rinchhen.vezzremote.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.rinchhen.vezzremote.data.TvApp
 import com.rinchhen.vezzremote.data.TvDevice
 import com.rinchhen.vezzremote.protocol.RemoteClient
 import com.rinchhen.vezzremote.protocol.RemoteKey
-import com.rinchhen.vezzremote.ui.components.ActionRow
-import com.rinchhen.vezzremote.ui.components.AppShortcuts
+import com.rinchhen.vezzremote.ui.components.ActionGrid
+import com.rinchhen.vezzremote.ui.components.AppIcon
 import com.rinchhen.vezzremote.ui.components.Dpad
+import com.rinchhen.vezzremote.ui.components.FavoriteAppsRow
+import com.rinchhen.vezzremote.ui.components.GhostButton
+import com.rinchhen.vezzremote.ui.components.GlassCard
+import com.rinchhen.vezzremote.ui.components.GradientButton
+import com.rinchhen.vezzremote.ui.components.HdmiRow
 import com.rinchhen.vezzremote.ui.components.KeyboardSheet
-import com.rinchhen.vezzremote.ui.components.MediaRow
-import com.rinchhen.vezzremote.ui.components.VolumeColumn
+import com.rinchhen.vezzremote.ui.components.MediaControls
+import com.rinchhen.vezzremote.ui.components.SectionHeader
+import com.rinchhen.vezzremote.ui.components.StatPill
+import com.rinchhen.vezzremote.ui.components.StatusDot
+import com.rinchhen.vezzremote.ui.components.VolumeCard
+import com.rinchhen.vezzremote.ui.theme.VezzGradients
+import com.rinchhen.vezzremote.ui.theme.VezzTeal
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RemoteScreen(
+fun RemoteContent(
     device: TvDevice?,
     state: RemoteClient.State,
     volume: RemoteClient.VolumeState,
@@ -60,16 +69,14 @@ fun RemoteScreen(
     isOn: Boolean,
     haptics: Boolean,
     leftHanded: Boolean,
+    apps: List<TvApp>,
     onKey: (RemoteKey) -> Unit,
     onText: (String) -> Unit,
     onTextAndEnter: (String) -> Unit,
     onClear: () -> Unit,
-    onLaunchPackage: (String) -> Unit,
-    onDial: (String) -> Unit,
-    onSendLink: (String) -> Unit,
+    onLaunchApp: (TvApp) -> Unit,
+    onOpenApps: () -> Unit,
     onReconnect: () -> Unit,
-    onOpenDevices: () -> Unit,
-    onOpenSettings: () -> Unit,
 ) {
     var showKeyboard by rememberSaveable { mutableStateOf(false) }
     var showPowerConfirm by rememberSaveable { mutableStateOf(false) }
@@ -80,166 +87,100 @@ fun RemoteScreen(
         onDispose { view.keepScreenOn = false }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(device?.name ?: "Remote", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            connectionLabel(state),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = when (state) {
-                                is RemoteClient.State.Error -> MaterialTheme.colorScheme.error
-                                is RemoteClient.State.Connected -> MaterialTheme.colorScheme.secondary
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onOpenDevices) {
-                        Icon(Icons.Default.Tv, contentDescription = "Choose TV")
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                },
+    val connected = state is RemoteClient.State.Connected
+    val current = apps.firstOrNull { it.packageName == currentApp }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 20.dp,
+            end = 20.dp,
+            top = 4.dp,
+            bottom = 28.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item {
+            NowPlayingCard(
+                device = device,
+                state = state,
+                volume = volume,
+                current = current,
+                currentApp = currentApp,
+                isOn = isOn,
+                onReconnect = onReconnect,
             )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            if (state is RemoteClient.State.Error) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                    ),
-                ) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Connection problem", fontWeight = FontWeight.SemiBold)
-                        Text(state.message, style = MaterialTheme.typography.bodySmall)
-                        Button(onClick = onReconnect) { Text("Reconnect") }
-                    }
-                }
-            } else if (state is RemoteClient.State.Disconnected) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("Not connected", modifier = Modifier.weight(1f))
-                        Button(onClick = onReconnect) { Text("Connect") }
-                    }
-                }
-            }
+        }
 
+        item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    appLabel(currentApp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                if (volume.level >= 0) {
-                    Text(
-                        if (volume.muted) "Muted" else "Vol ${volume.level}/${volume.max}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(
-                    if (isOn) "Screen on" else "Screen off",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (leftHanded) {
                     Dpad(onKey = onKey, haptics = haptics)
-                    VolumeColumn(onKey = onKey, haptics = haptics)
+                    VolumeCard(volume = volume, onKey = onKey, haptics = haptics)
                 } else {
-                    VolumeColumn(onKey = onKey, haptics = haptics)
+                    VolumeCard(volume = volume, onKey = onKey, haptics = haptics)
                     Dpad(onKey = onKey, haptics = haptics)
                 }
             }
+        }
 
-            ActionRow(
+        item {
+            ActionGrid(
                 onKey = onKey,
-                onSettings = onOpenSettings,
+                onPower = { showPowerConfirm = true },
                 haptics = haptics,
             )
+        }
 
-            MediaRow(onKey = onKey, haptics = haptics)
+        item {
+            MediaControls(onKey = onKey, haptics = haptics)
+        }
 
+        item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Button(
+                GradientButton(
+                    text = "Keyboard",
+                    icon = Icons.Default.Keyboard,
                     onClick = { showKeyboard = true },
                     modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Default.Keyboard, contentDescription = null)
-                    Text("Keyboard")
-                }
-                FilledTonalButton(
+                )
+                GhostButton(
+                    text = "Search",
+                    icon = Icons.Default.Search,
                     onClick = {
                         onKey(RemoteKey.Search)
                         showKeyboard = true
                     },
                     modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Default.Search, contentDescription = null)
-                    Text("Search")
-                }
+                )
             }
+        }
 
-            Text(
-                "Apps",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
+        item {
+            FavoriteAppsRow(
+                apps = apps.filter { it.favorite },
+                currentApp = currentApp,
+                onLaunch = onLaunchApp,
+                onOpenApps = onOpenApps,
             )
-            AppShortcuts(
-                onLaunchPackage = onLaunchPackage,
-                onDial = onDial,
-                onSendLink = onSendLink,
-            )
+        }
 
-            OutlinedButton(
-                onClick = { showPowerConfirm = true },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
-                Text("Power")
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                AssistChipButton("HDMI 1", Modifier.weight(1f)) { onKey(RemoteKey.Hdmi1) }
-                AssistChipButton("HDMI 2", Modifier.weight(1f)) { onKey(RemoteKey.Hdmi2) }
-                AssistChipButton("HDMI 3", Modifier.weight(1f)) { onKey(RemoteKey.Hdmi3) }
-            }
+        item {
+            SectionHeader(
+                title = "Inputs",
+                subtitle = "Jump straight to a source",
+            )
+        }
+
+        item {
+            HdmiRow(onKey = onKey)
         }
     }
 
@@ -273,21 +214,131 @@ fun RemoteScreen(
 }
 
 @Composable
-private fun AssistChipButton(
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
+private fun NowPlayingCard(
+    device: TvDevice?,
+    state: RemoteClient.State,
+    volume: RemoteClient.VolumeState,
+    current: TvApp?,
+    currentApp: String,
+    isOn: Boolean,
+    onReconnect: () -> Unit,
 ) {
-    OutlinedButton(onClick = onClick, modifier = modifier) {
-        Text(label, style = MaterialTheme.typography.labelSmall)
-    }
-}
+    val connected = state is RemoteClient.State.Connected
+    val error = state as? RemoteClient.State.Error
+    val disconnected = state is RemoteClient.State.Disconnected
+    val label = current?.label ?: appLabel(currentApp)
+    val fraction = if (volume.max > 0) (volume.level.toFloat() / volume.max).coerceIn(0f, 1f) else 0f
 
-private fun connectionLabel(state: RemoteClient.State): String = when (state) {
-    is RemoteClient.State.Connected -> "Connected"
-    is RemoteClient.State.Connecting -> "Connecting…"
-    is RemoteClient.State.Error -> "Offline"
-    RemoteClient.State.Disconnected -> "Not connected"
+    GlassCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (current == null && currentApp.isBlank()) {
+                Box(
+                    modifier = Modifier
+                        .size(62.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(VezzGradients.primary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Default.Tv, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                }
+            } else {
+                AppIcon(
+                    app = current,
+                    packageName = currentApp,
+                    label = null,
+                    size = 62.dp,
+                    showRunning = connected,
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                AnimatedContent(
+                    targetState = label,
+                    transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
+                    label = "current-app",
+                ) { animatedLabel ->
+                    Text(
+                        animatedLabel,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    StatusDot(
+                        color = when {
+                            connected -> VezzTeal
+                            error != null -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                    Text(
+                        when {
+                            connected -> if (isOn) "Connected · screen on" else "Connected · standby"
+                            error != null -> "Offline"
+                            disconnected -> "Not connected"
+                            else -> "Connecting…"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    if (volume.muted) "Muted" else if (volume.level >= 0) "${volume.level}/${volume.max}" else "—",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (volume.muted) MaterialTheme.colorScheme.error else VezzTeal,
+                )
+                Text(
+                    "volume",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        if (volume.level >= 0) {
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp),
+                color = VezzTeal,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StatPill(device?.name ?: "TV")
+            StatPill(if (isOn) "Screen on" else "Standby")
+            Spacer(modifier = Modifier.weight(1f))
+            if (error != null || disconnected) {
+                TextButton(onClick = onReconnect) { Text("Reconnect") }
+            }
+        }
+
+        if (error != null) {
+            Text(
+                error.message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
 }
 
 private fun appLabel(packageName: String): String = when (packageName) {
@@ -300,5 +351,5 @@ private fun appLabel(packageName: String): String = when (packageName) {
     "org.xbmc.kodi" -> "Kodi"
     "com.android.tv.settings" -> "TV settings"
     "com.gathin.tvhome" -> "VEZZ home"
-    else -> packageName
+    else -> packageName.substringAfterLast('.').replaceFirstChar { it.uppercase() }
 }
