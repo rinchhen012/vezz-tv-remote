@@ -2,6 +2,8 @@
 
 A small, local-only Android remote for the **HKC / VEZZ "4K SA Google TV"** in this house. It uses Google's **Android TV Remote protocol v2** over Wi-Fi — the same protocol as the official Google TV app — so there is no IR blaster, Bluetooth pairing, root, or ADB needed at runtime.
 
+**Download:** [VEZZ Remote 0.1.0 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.1.0) (debug-signed sideload build).
+
 The app was built because the supplied Bluetooth remote is slow to wake and its buttons need a hard press. This remote keeps one TLS connection open, has large touch targets, and lets you type on the phone's keyboard.
 
 ## What works
