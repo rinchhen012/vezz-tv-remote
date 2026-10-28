@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.rinchhen.vezzremote.BuildConfig
 import com.rinchhen.vezzremote.data.TvDevice
 import com.rinchhen.vezzremote.protocol.RemoteClient
 import com.rinchhen.vezzremote.ui.components.Hairline
@@ -232,7 +233,7 @@ fun SettingsContent(
         }
         item {
             Panel(contentPadding = PaddingValues(16.dp)) {
-                Text("VEZZ REMOTE 0.3.0", style = MaterialTheme.typography.labelLarge, color = Paper)
+                Text("VEZZ REMOTE ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge, color = Paper)
                 Text(
                     "Android TV Remote protocol v2 over TLS. No accounts, analytics, ads or cloud service.",
                     style = MaterialTheme.typography.bodySmall,

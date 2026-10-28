@@ -152,6 +152,7 @@ fun VolumeRocker(
             onClick = { onKey(RemoteKey.VolumeUp) },
             size = 48.dp,
             haptics = haptics,
+            repeatWhilePressed = true,
         )
         Box(
             modifier = Modifier
@@ -182,6 +183,7 @@ fun VolumeRocker(
             onClick = { onKey(RemoteKey.VolumeDown) },
             size = 48.dp,
             haptics = haptics,
+            repeatWhilePressed = true,
         )
     }
 }

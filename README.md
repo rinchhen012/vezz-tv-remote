@@ -2,7 +2,7 @@
 
 A small, local-only Android remote for the **HKC / VEZZ "4K SA Google TV"** in this house. It uses Google's **Android TV Remote protocol v2** over Wi-Fi — the same protocol as the official Google TV app — so there is no IR blaster, Bluetooth pairing, root, or ADB needed at runtime.
 
-**Download:** [VEZZ Remote 0.3.3 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.3) (debug-signed sideload build).
+**Download:** [VEZZ Remote 0.3.4 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.4) (debug-signed sideload build).
 
 The app was built because the supplied Bluetooth remote is slow to wake and its buttons need a hard press. This remote keeps one TLS connection open, has large touch targets, and lets you type on the phone's keyboard.
 
@@ -11,6 +11,7 @@ The app was built because the supplied Bluetooth remote is slow to wake and its 
 - One-time pairing with the 6-character code shown on the TV.
 - Reconnects on app launch and on resume **without asking for the code again**.
 - Large D-pad, Back, Home, Menu, OK, volume, mute, media keys, power, inputs and HDMI 1–3.
+- Hold volume up/down to move several steps without tapping repeatedly.
 - Phone keyboard sheet for the TV's focused text field; it focuses the field and opens the phone IME automatically.
 - A full app grid with the TV's real app names and icons, served by the CleanYourTV launcher on the TV.
 - Launch any app from the grid; Netflix uses DIAL, the rest use the launcher's `market://launch` handler.
@@ -25,6 +26,7 @@ Tested against the HKC/VEZZ TV:
 
 - Pairing with the on-screen code, and reconnecting after an app restart **without another code**.
 - D-pad, Back/Home/Menu/Input/TV settings, volume and mute.
+- Hold volume up/down for continuous steps (verified 5 → 13 → 0 on the TV).
 - Current app, volume and screen state reported by the TV.
 - SmartTube launch through `market://launch`, and Netflix through DIAL.
 - Keyboard text into SmartTube's search field from the Vivo's own IME.
@@ -37,7 +39,7 @@ Tested against the HKC/VEZZ TV:
 
 The Apps tab is a searchable grid with categories, favorites and a refresh action. It reads the full app list and real icons from the TV catalog endpoint described in [`docs/TV_CATALOG.md`](docs/TV_CATALOG.md), caching the icons on the phone. Until that endpoint is installed, it falls back to the bundled list and neutral letter tiles.
 
-0.3.3 keeps the Swiss industrial control surface from 0.3.0 and fixes the daily-use details: the TV's real name (`Main TV`) replaces the `ATVREMOTE/<mac>` certificate name, the catalog removes duplicate HDO Box entries and the awkward `MultiMediaPlayer` label, the keyboard sheet opens with the IME ready, and a dropped link reconnects automatically. The idle link stays up without a client heartbeat: the TV treats client messages as activity and stops pinging, so the app relies on the TV's own ping cadence and no fixed socket read timeout. On the narrower Samsung, the status line is just `CONNECTED` and the TV settings key is `SETUP` so neither wraps. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
+0.3.4 keeps the Swiss industrial control surface from 0.3.0 and fixes the daily-use details: the TV's real name (`Main TV`) replaces the `ATVREMOTE/<mac>` certificate name, the catalog removes duplicate HDO Box entries and the awkward `MultiMediaPlayer` label, the keyboard sheet opens with the IME ready, and a dropped link reconnects automatically. The idle link stays up without a client heartbeat: the TV treats client messages as activity and stops pinging, so the app relies on the TV's own ping cadence and no fixed socket read timeout. On the narrower Samsung, the status line is just `CONNECTED` and the TV settings key is `SETUP` so neither wraps. 0.3.4 centers every keycap's icon/label pair, lets a held volume key repeat, and reads the version from the build instead of a hardcoded string. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
 
 ## Requirements
 
@@ -48,12 +50,12 @@ The Apps tab is a searchable grid with categories, favorites and a refresh actio
 
 ## Install (sideload)
 
-1. Copy `dist/vezz-remote-0.3.3.apk` to the phone (or use `adb install -r`).
+1. Copy `dist/vezz-remote-0.3.4.apk` to the phone (or use `adb install -r`).
 2. Open the APK and allow installs from that source when prompted.
 3. Turn the TV on and make sure the phone is on the same Wi-Fi.
 
 ```bash
-adb install -r dist/vezz-remote-0.3.3.apk
+adb install -r dist/vezz-remote-0.3.4.apk
 ```
 
 The APK is signed with the standard Android debug key. That is fine for a personal sideload; it is not a Play Store release.
