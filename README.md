@@ -34,7 +34,8 @@ Tested against the HKC/VEZZ TV:
 - Seamless D-pad quadrants and center OK verified; volume tap = 1 step, 2.2 s hold = 2 steps; mute toggles.
 - Transport controls in the now-playing card and the now-playing progress line.
 - Voice search opens the TV's Google Assistant voice prompt; the app streams 8 kHz mono audio and closes the session cleanly.
-- Swiping from the D-pad or volume rocker scrolls the page without sending a key.
+- Real-phone voice search verified on the Vivo: the TV heard a spoken weather question and answered with the Tokyo forecast.
+- Reconnect state, keep-screen-awake, and scroll passthrough verified.
 - Current app, volume and screen state reported by the TV.
 - Now-playing title, channel and `PLAYING`/`PAUSED` from the TV's media session, with a progress line.
 - SmartTube launch through `market://launch`, and Netflix through DIAL.
@@ -104,7 +105,7 @@ As a result:
 
 The TV may impose its own limit on paired clients. If a very old phone needs to be removed, use the TV's remote/device settings or reset the app's identity on that phone and pair again.
 
-## App shortcuts
+## App launching
 
 `Android TV Remote` has no general "start package" command. The practical method on this TV is:
 
@@ -112,7 +113,7 @@ The TV may impose its own limit on paired clients. If a very old phone needs to 
 market://launch?id=<package>
 ```
 
-The CleanYourTV launcher's `AppLaunchActivity` resolves that to the app's TV launch intent. The app uses it for the shortcuts above; Netflix uses the TV's DIAL service (`http://<tv>:8008/apps/Netflix`) instead.
+The CleanYourTV launcher's `AppLaunchActivity` resolves that to the app's TV launch intent. The app uses it for app-grid launches; Netflix uses the TV's DIAL service (`http://<tv>:8008/apps/Netflix`) instead.
 
 If an app does not open:
 
@@ -120,11 +121,17 @@ If an app does not open:
 - Try opening it once with the TV home screen; some apps only expose a launcher entry after first run.
 - Use the D-pad as a fallback.
 
+## Voice search
+
+Tap the **mic** button beside Keyboard/Search for the first time and allow microphone access. The TV opens its Google Assistant voice prompt; speak into the phone and tap **Stop** when done. The phone streams 16-bit mono 8 kHz PCM over the same pinned TLS connection as the rest of the remote. The session ends automatically after 20 seconds if you forget to stop it.
+
+Voice search depends on the TV's Google Assistant and its Android TV Remote Service. If the TV does not open the assistant, the app shows `VOICE SEARCH NOT AVAILABLE` and the normal D-pad/keyboard controls still work.
+
 ## Keyboard
 
 The keyboard sheet sends text through the remote protocol's IME messages. **Focus a text field on the TV first** (for example, the search box in SmartTube or YouTube), tap **Keyboard**, then type and press **Send** or **Send + Enter**. The sheet now focuses its own text field and opens the phone IME by itself.
 
-Some TV apps draw their own keyboard and cannot receive text this way. In that case, use the app's own keyboard with the D-pad, or use the TV's voice search. The remote protocol does not expose a universal text field.
+Some TV apps draw their own keyboard and cannot receive text this way. In that case, use the app's own keyboard with the D-pad, or use the mic button for voice search. The remote protocol does not expose a universal text field.
 
 ## Build
 
@@ -160,6 +167,7 @@ LICENSES/            Apache-2.0, MIT, and font OFL texts
 - The TV's self-signed certificate is pinned (SHA-256) after pairing.
 - The phone's private key is held in Android Keystore when available; the fallback is an app-private software key.
 - The app has no internet backend, analytics, ads or accounts.
+- Voice audio is captured only while the voice sheet is active and is sent to the TV over the pinned TLS connection. It is not sent to any external service by this app.
 - DIAL uses plain HTTP on the local network for the Netflix shortcut. The TV exposes that service on port 8008; no credentials are sent.
 - The app does not enable or require ADB at runtime. Network ADB on the TV can be turned off after setup.
 
@@ -167,6 +175,7 @@ LICENSES/            Apache-2.0, MIT, and font OFL texts
 
 - The remote service must be reachable. A TV that powers its Wi-Fi down in deep standby cannot be woken by this app; use the physical remote, HDMI-CEC or Wake-on-LAN.
 - App shortcuts depend on the launcher handling `market://launch`. The CleanYourTV launcher does; a third-party launcher may not. Netflix uses DIAL first.
+- Voice search needs microphone permission and a TV with Google Assistant / Android TV Remote Service; without it the app falls back to the D-pad and keyboard.
 - The catalog endpoint is part of the CleanYourTV launcher distributed alongside this app. Without it, the Apps tab falls back to the bundled shortcuts.
 - Some apps ignore IME text; see the keyboard section.
 - This app is not affiliated with Google, HKC or VEZZ. Android TV and Google TV are trademarks of Google LLC.
