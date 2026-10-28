@@ -2,7 +2,7 @@
 
 A small, local-only Android remote for the **HKC / VEZZ "4K SA Google TV"** in this house. It uses Google's **Android TV Remote protocol v2** over Wi-Fi — the same protocol as the official Google TV app — so there is no IR blaster, Bluetooth pairing, root, or ADB needed at runtime.
 
-**Download:** [VEZZ Remote 0.3.1 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.1) (debug-signed sideload build).
+**Download:** [VEZZ Remote 0.3.2 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.2) (debug-signed sideload build).
 
 The app was built because the supplied Bluetooth remote is slow to wake and its buttons need a hard press. This remote keeps one TLS connection open, has large touch targets, and lets you type on the phone's keyboard.
 
@@ -28,12 +28,13 @@ Tested against the HKC/VEZZ TV:
 - Current app, volume and screen state reported by the TV.
 - SmartTube launch through `market://launch`, and Netflix through DIAL.
 - Keyboard text into SmartTube's search field.
+- A single idle session stays connected for 6+ minutes; auto-reconnect recovers if the TV or Wi-Fi drops the socket.
 - The TV catalog: 18 launchable apps, labels and real 192 px icons; duplicate installs are collapsed and the launcher itself is hidden.
 - Manual IP pairing from an emulator. mDNS discovery is implemented but still to be checked on a real phone.
 
 The Apps tab is a searchable grid with categories, favorites and a refresh action. It reads the full app list and real icons from the TV catalog endpoint described in [`docs/TV_CATALOG.md`](docs/TV_CATALOG.md), caching the icons on the phone. Until that endpoint is installed, it falls back to the bundled list and neutral letter tiles.
 
-0.3.1 keeps the Swiss industrial control surface from 0.3.0 and fixes the daily-use details: the TV's real name (`Main TV`) replaces the `ATVREMOTE/<mac>` certificate name, the catalog removes duplicate HDO Box entries and the awkward `MultiMediaPlayer` label, the keyboard sheet opens with the IME ready, and an idle session is kept alive and reconnected automatically. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
+0.3.2 keeps the Swiss industrial control surface from 0.3.0 and fixes the daily-use details: the TV's real name (`Main TV`) replaces the `ATVREMOTE/<mac>` certificate name, the catalog removes duplicate HDO Box entries and the awkward `MultiMediaPlayer` label, the keyboard sheet opens with the IME ready, and a dropped link reconnects automatically. The idle link stays up without a client heartbeat: the TV treats client messages as activity and stops pinging, so 0.3.2 relies on the TV's own ping cadence and no fixed socket read timeout. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
 
 Still to verify on the physical phones/TV:
 
@@ -50,12 +51,12 @@ Still to verify on the physical phones/TV:
 
 ## Install (sideload)
 
-1. Copy `dist/vezz-remote-0.3.1.apk` to the phone (or use `adb install -r`).
+1. Copy `dist/vezz-remote-0.3.2.apk` to the phone (or use `adb install -r`).
 2. Open the APK and allow installs from that source when prompted.
 3. Turn the TV on and make sure the phone is on the same Wi-Fi.
 
 ```bash
-adb install -r dist/vezz-remote-0.3.1.apk
+adb install -r dist/vezz-remote-0.3.2.apk
 ```
 
 The APK is signed with the standard Android debug key. That is fine for a personal sideload; it is not a Play Store release.
