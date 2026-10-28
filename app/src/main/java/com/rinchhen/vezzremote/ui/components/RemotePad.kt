@@ -6,7 +6,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -109,20 +110,36 @@ fun Dpad(
             .pointerInput(Unit) {
                 val okRadius = with(density) { 42.dp.toPx() }
                 val outerRadius = minOf(size.width, size.height) / 2f
-                detectTapGestures(
-                    onPress = {
-                        val zone = dpadZone(it, size, okRadius, outerRadius)
-                        if (zone != null) {
-                            pressed = zone
-                            if (haptics) {
-                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            }
-                            onKey(zone.key)
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val zone = dpadZone(down.position, size, okRadius, outerRadius)
+                    if (zone == null) return@awaitEachGesture
+                    pressed = zone
+                    var dragged = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (change.isConsumed) {
+                            dragged = true
+                            break
                         }
-                        tryAwaitRelease()
-                        pressed = null
-                    },
-                )
+                        if (!change.pressed) {
+                            if (!dragged) {
+                                change.consume()
+                                if (haptics) {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                }
+                                onKey(zone.key)
+                            }
+                            break
+                        }
+                        if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                            dragged = true
+                            break
+                        }
+                    }
+                    pressed = null
+                }
             }
             .semantics {
                 contentDescription = "Directional pad"
@@ -168,18 +185,6 @@ fun Dpad(
                 drawPath(sector, Acid.copy(alpha = 0.14f))
             }
             drawCircle(Line, radius = outer - 10.dp.toPx(), style = Stroke(1.dp.toPx()))
-            drawLine(
-                Line,
-                Offset(center.x, center.y - outer),
-                Offset(center.x, center.y + outer),
-                strokeWidth = 1.dp.toPx(),
-            )
-            drawLine(
-                Line,
-                Offset(center.x - outer, center.y),
-                Offset(center.x + outer, center.y),
-                strokeWidth = 1.dp.toPx(),
-            )
         }
 
         Icon(
@@ -299,42 +304,57 @@ fun VolumeRocker(
                 .background(Ink0)
                 .border(1.dp, LineStrong, shape)
                 .pointerInput(Unit) {
-                    detectTapGestures(
-                        onPress = {
-                            val zone = when {
-                                it.y < size.height / 3f -> VolumeZone.Up
-                                it.y < size.height * 2f / 3f -> VolumeZone.Down
-                                else -> VolumeZone.Mute
-                            }
-                            pressed = zone
-                            var sentByHold = false
-                            val repeat = if (zone != VolumeZone.Mute) {
-                                scope.launch {
-                                    // Slow, deliberate repeat: 5 is already loud on this TV.
-                                    delay(900)
-                                    while (isActive) {
-                                        sentByHold = true
-                                        if (haptics) {
-                                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                        }
-                                        onKey(zone.key)
-                                        delay(700)
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val zone = when {
+                            down.position.y < size.height / 3f -> VolumeZone.Up
+                            down.position.y < size.height * 2f / 3f -> VolumeZone.Down
+                            else -> VolumeZone.Mute
+                        }
+                        pressed = zone
+                        var dragged = false
+                        var sentByHold = false
+                        val repeat = if (zone != VolumeZone.Mute) {
+                            scope.launch {
+                                // Slow, deliberate repeat: 5 is already loud on this TV.
+                                delay(900)
+                                while (isActive && !dragged) {
+                                    sentByHold = true
+                                    if (haptics) {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                     }
+                                    onKey(zone.key)
+                                    delay(700)
                                 }
-                            } else {
-                                null
                             }
-                            val released = tryAwaitRelease()
-                            repeat?.cancel()
-                            pressed = null
-                            if (released && !sentByHold) {
-                                if (haptics) {
-                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        } else {
+                            null
+                        }
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (change.isConsumed) {
+                                dragged = true
+                                break
+                            }
+                            if (!change.pressed) {
+                                if (!dragged && !sentByHold) {
+                                    change.consume()
+                                    if (haptics) {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    }
+                                    onKey(zone.key)
                                 }
-                                onKey(zone.key)
+                                break
                             }
-                        },
-                    )
+                            if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                                dragged = true
+                                break
+                            }
+                        }
+                        repeat?.cancel()
+                        pressed = null
+                    }
                 }
                 .semantics {
                     contentDescription = "Volume rocker"
@@ -463,7 +483,7 @@ fun ActionGrid(
             )
             Keycap(
                 Icons.Outlined.Settings,
-                "Setup",
+                "System",
                 { onKey(RemoteKey.Settings) },
                 Modifier.weight(1f),
                 haptics = haptics,

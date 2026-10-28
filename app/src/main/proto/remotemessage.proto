@@ -39,15 +39,17 @@ message RemoteStart {
 }
 
 message RemoteVoiceEnd {
-
+  int32 session_id = 1;
 }
 
 message RemoteVoicePayload {
-
+  int32 session_id = 1;
+  bytes samples = 2;
 }
 
 message RemoteVoiceBegin {
-
+  int32 session_id = 1;
+  string package_name = 2;
 }
 
 message RemoteTextFieldStatus {

@@ -1,6 +1,9 @@
 package com.rinchhen.vezzremote.ui
 
 import android.app.Application
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.rinchhen.vezzremote.AppContainer
@@ -39,6 +42,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         data class Failed(val device: TvDevice?, val message: String) : PairingState
     }
 
+    sealed interface VoiceState {
+        data object Idle : VoiceState
+        data object Starting : VoiceState
+        data object Recording : VoiceState
+        data class Error(val message: String) : VoiceState
+    }
+
     private val container: AppContainer = (application as VezzRemoteApp).container
     private val store = container.store
     private val discovery = container.discovery
@@ -58,6 +68,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _remoteState = MutableStateFlow<RemoteClient.State>(RemoteClient.State.Disconnected)
     val remoteState = _remoteState.asStateFlow()
 
+    private val _reconnecting = MutableStateFlow(false)
+    val reconnecting = _reconnecting.asStateFlow()
+
     private val _volume = MutableStateFlow(RemoteClient.VolumeState())
     val volume = _volume.asStateFlow()
 
@@ -76,14 +89,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _leftHanded = MutableStateFlow(store.leftHanded)
     val leftHanded = _leftHanded.asStateFlow()
 
-    private val _repeatDelay = MutableStateFlow(store.repeatDelayMs)
-    val repeatDelay = _repeatDelay.asStateFlow()
+    private val _keepScreenOn = MutableStateFlow(store.keepScreenOn)
+    val keepScreenOn = _keepScreenOn.asStateFlow()
 
     private val _apps = MutableStateFlow(AppCatalog.apps)
     val apps = _apps.asStateFlow()
 
     private val _nowPlaying = MutableStateFlow<TvCatalogClient.NowPlaying?>(null)
     val nowPlaying = _nowPlaying.asStateFlow()
+
+    private val _voiceState = MutableStateFlow<VoiceState>(VoiceState.Idle)
+    val voiceState = _voiceState.asStateFlow()
 
     val clientName: String get() = identity?.clientName ?: "Preparing phone identity…"
 
@@ -104,6 +120,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var pairingDevice: TvDevice? = null
     private var reconnectJob: Job? = null
     private var reconnectAttempt = 0
+    private var voiceJob: Job? = null
+    private var voiceTimeoutJob: Job? = null
+    private var audioRecord: AudioRecord? = null
+    private var voiceSessionId: Int? = null
 
     init {
         discovery.start()
@@ -222,8 +242,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun connect(device: TvDevice) {
         val id = identity ?: return
         if (connectJob?.isActive == true && _activeDevice.value?.id == device.id) return
+        stopVoice()
         reconnectJob?.cancel()
         reconnectJob = null
+        _reconnecting.value = false
         statusJob?.cancel()
         statusJob = null
         _nowPlaying.value = null
@@ -244,7 +266,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 client.state.collect { state ->
                     _remoteState.value = state
                     when (state) {
-                        is RemoteClient.State.Connected -> reconnectAttempt = 0
+                        is RemoteClient.State.Connected -> {
+                            reconnectAttempt = 0
+                            _reconnecting.value = false
+                        }
                         is RemoteClient.State.Error ->
                             if (_activeDevice.value?.id == device.id) scheduleReconnect(device)
                         else -> Unit
@@ -276,6 +301,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun scheduleReconnect(device: TvDevice) {
         if (reconnectJob?.isActive == true) return
+        _reconnecting.value = true
         reconnectJob = viewModelScope.launch {
             val index = reconnectAttempt.coerceAtMost(RECONNECT_DELAYS.lastIndex)
             reconnectAttempt = (index + 1).coerceAtMost(RECONNECT_DELAYS.lastIndex)
@@ -312,6 +338,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun disconnect() {
         reconnectAttempt = 0
+        _reconnecting.value = false
+        stopVoice()
         reconnectJob?.cancel()
         reconnectJob = null
         statusJob?.cancel()
@@ -346,6 +374,112 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearText() {
         repeat(40) { remoteClient?.sendKey(RemoteKey.Delete) }
+    }
+
+    fun startVoiceSearch() {
+        val client = remoteClient ?: run {
+            _voiceState.value = VoiceState.Error("Connect to the TV first")
+            return
+        }
+        if (_voiceState.value is VoiceState.Starting || _voiceState.value is VoiceState.Recording) return
+        stopVoice()
+        _voiceState.value = VoiceState.Starting
+        voiceJob = viewModelScope.launch {
+            val session = client.startVoiceSession()
+            if (session == null) {
+                _voiceState.value = VoiceState.Error("VOICE SEARCH NOT AVAILABLE")
+                return@launch
+            }
+            val record = try {
+                createAudioRecord()
+            } catch (_: Exception) {
+                client.endVoice(session)
+                _voiceState.value = VoiceState.Error("MICROPHONE UNAVAILABLE")
+                return@launch
+            }
+            audioRecord = record
+            voiceSessionId = session
+            try {
+                record.startRecording()
+                if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                    throw IllegalStateException("Microphone did not start")
+                }
+                _voiceState.value = VoiceState.Recording
+                voiceTimeoutJob = viewModelScope.launch {
+                    delay(20_000)
+                    stopVoice()
+                }
+                withContext(Dispatchers.IO) {
+                    val buffer = ByteArray(VOICE_CHUNK_SIZE)
+                    while (isActive) {
+                        val read = record.read(buffer, 0, buffer.size)
+                        if (read > 0) {
+                            client.sendVoiceChunk(buffer.copyOf(read), session)
+                        } else if (read < 0) {
+                            break
+                        }
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _voiceState.value = VoiceState.Error("MICROPHONE UNAVAILABLE")
+            } finally {
+                releaseAudio()
+                if (voiceSessionId == session) voiceSessionId = null
+                client.endVoice(session)
+                if (_voiceState.value !is VoiceState.Error) _voiceState.value = VoiceState.Idle
+            }
+        }
+    }
+
+    fun stopVoice() {
+        voiceTimeoutJob?.cancel()
+        voiceTimeoutJob = null
+        val record = audioRecord
+        runCatching {
+            if (record?.recordingState == AudioRecord.RECORDSTATE_RECORDING) record.stop()
+        }
+        voiceJob?.cancel()
+        voiceJob = null
+        _voiceState.value = VoiceState.Idle
+    }
+
+    fun clearVoiceError() {
+        if (_voiceState.value is VoiceState.Error) _voiceState.value = VoiceState.Idle
+    }
+
+    private fun createAudioRecord(): AudioRecord {
+        val min = AudioRecord.getMinBufferSize(
+            8_000,
+            AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+        )
+        val record = AudioRecord.Builder()
+            .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setSampleRate(8_000)
+                    .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                    .build(),
+            )
+            .setBufferSizeInBytes(maxOf(min, 16_384))
+            .build()
+        if (record.state != AudioRecord.STATE_INITIALIZED) {
+            record.release()
+            throw IllegalStateException("AudioRecord not initialized")
+        }
+        return record
+    }
+
+    private fun releaseAudio() {
+        val record = audioRecord ?: return
+        audioRecord = null
+        runCatching {
+            if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) record.stop()
+        }
+        runCatching { record.release() }
     }
 
     fun launchPackage(packageName: String) {
@@ -429,9 +563,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         store.leftHanded = enabled
     }
 
-    fun setRepeatDelay(value: Long) {
-        _repeatDelay.value = value.coerceIn(45L, 250L)
-        store.repeatDelayMs = _repeatDelay.value
+    fun setKeepScreenOn(enabled: Boolean) {
+        _keepScreenOn.value = enabled
+        store.keepScreenOn = enabled
     }
 
     override fun onCleared() {
@@ -439,6 +573,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         catalogJob?.cancel()
         statusJob?.cancel()
         reconnectJob?.cancel()
+        stopVoice()
         remoteClient?.disconnect()
         super.onCleared()
     }
@@ -449,5 +584,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         val RECONNECT_DELAYS = longArrayOf(1_000L, 2_000L, 5_000L, 10_000L, 20_000L, 30_000L)
+        const val VOICE_CHUNK_SIZE = 8 * 1024
     }
 }

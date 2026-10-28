@@ -80,9 +80,9 @@ class TvStore(context: Context) {
         get() = prefs.getBoolean(KEY_LEFT_HANDED, false)
         set(value) = prefs.edit().putBoolean(KEY_LEFT_HANDED, value).apply()
 
-    var repeatDelayMs: Long
-        get() = prefs.getLong(KEY_REPEAT_DELAY, 90L)
-        set(value) = prefs.edit().putLong(KEY_REPEAT_DELAY, value.coerceIn(45L, 250L)).apply()
+    var keepScreenOn: Boolean
+        get() = prefs.getBoolean(KEY_KEEP_SCREEN_ON, true)
+        set(value) = prefs.edit().putBoolean(KEY_KEEP_SCREEN_ON, value).apply()
 
     private fun write(devices: List<TvDevice>) {
         val array = JSONArray()
@@ -116,6 +116,6 @@ class TvStore(context: Context) {
         const val KEY_LAST_DEVICE = "last_device"
         const val KEY_HAPTICS = "haptics"
         const val KEY_LEFT_HANDED = "left_handed"
-        const val KEY_REPEAT_DELAY = "repeat_delay"
+        const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
     }
 }

@@ -2,7 +2,7 @@
 
 A small, local-only Android remote for the **HKC / VEZZ "4K SA Google TV"** in this house. It uses Google's **Android TV Remote protocol v2** over Wi-Fi — the same protocol as the official Google TV app — so there is no IR blaster, Bluetooth pairing, root, or ADB needed at runtime.
 
-**Download:** [VEZZ Remote 0.3.6 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.6) (debug-signed sideload build).
+**Download:** [VEZZ Remote 0.3.7 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.7) (debug-signed sideload build).
 
 The app was built because the supplied Bluetooth remote is slow to wake and its buttons need a hard press. This remote keeps one TLS connection open, has large touch targets, and lets you type on the phone's keyboard.
 
@@ -13,7 +13,10 @@ The app was built because the supplied Bluetooth remote is slow to wake and its 
 - Seamless circular D-pad: touch anywhere in the right quadrant for Right, and so on, with a large 84 dp OK center.
 - Seamless volume rocker: volume up, volume down and mute zones in one pill.
 - Hold volume up/down for slow, deliberate steps; a tap is exactly one step.
+- Now-playing card with title, channel, state, progress, and centered rewind / play-pause / forward controls.
+- Voice search: tap the mic, speak into the phone, and the TV opens Google Assistant voice search.
 - Back, Home, Menu, media, power, inputs and HDMI 1–3 keys.
+- Keep-screen-awake and left-handed options in Settings.
 - Phone keyboard sheet for the TV's focused text field; it focuses the field and opens the phone IME automatically.
 - A full app grid with the TV's real app names and icons, served by the CleanYourTV launcher on the TV.
 - Launch any app from the grid; Netflix uses DIAL, the rest use the launcher's `market://launch` handler.
@@ -29,7 +32,9 @@ Tested against the HKC/VEZZ TV:
 - Pairing with the on-screen code, and reconnecting after an app restart **without another code**.
 - D-pad, Back/Home/Menu/Input/TV settings, volume and mute.
 - Seamless D-pad quadrants and center OK verified; volume tap = 1 step, 2.2 s hold = 2 steps; mute toggles.
-- Hold volume up/down for slow steps (a tap = 1 step; 2.2 s ≈ 2 steps).
+- Transport controls in the now-playing card and the now-playing progress line.
+- Voice search opens the TV's Google Assistant voice prompt; the app streams 8 kHz mono audio and closes the session cleanly.
+- Swiping from the D-pad or volume rocker scrolls the page without sending a key.
 - Current app, volume and screen state reported by the TV.
 - Now-playing title, channel and `PLAYING`/`PAUSED` from the TV's media session, with a progress line.
 - SmartTube launch through `market://launch`, and Netflix through DIAL.
@@ -43,7 +48,7 @@ Tested against the HKC/VEZZ TV:
 
 The Apps tab is a searchable grid with categories, favorites and a refresh action. It reads the full app list and real icons from the TV catalog endpoint described in [`docs/TV_CATALOG.md`](docs/TV_CATALOG.md), caching the icons on the phone. Until that endpoint is installed, it falls back to the bundled list and neutral letter tiles.
 
-0.3.6 keeps the Swiss industrial control surface from 0.3.0 and fixes the daily-use details: the TV's real name (`Main TV`) replaces the `ATVREMOTE/<mac>` certificate name, the catalog removes duplicate HDO Box entries and the awkward `MultiMediaPlayer` label, the keyboard sheet opens with the IME ready, and a dropped link reconnects automatically. The idle link stays up without a client heartbeat: the TV treats client messages as activity and stops pinging, so the app relies on the TV's own ping cadence and no fixed socket read timeout. On the narrower Samsung, the status line is just `CONNECTED` and the TV settings key is `SETUP` so neither wraps. 0.3.6 removes the redundant header icons and horizontal volume bar, replaces the circular direction keys with one seamless quadrant D-pad, merges the volume keys into a single rocker with mute at the bottom, and makes held-volume changes deliberately slow so 5/100 does not jump to a loud level. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
+0.3.7 keeps the Swiss industrial control surface from 0.3.0 and fixes the daily-use details: the TV's real name (`Main TV`) replaces the `ATVREMOTE/<mac>` certificate name, the catalog removes duplicate HDO Box entries and the awkward `MultiMediaPlayer` label, the keyboard sheet opens with the IME ready, and a dropped link reconnects automatically. The idle link stays up without a client heartbeat: the TV treats client messages as activity and stops pinging, so the app relies on the TV's own ping cadence and no fixed socket read timeout. On the narrower Samsung, the status line is just `CONNECTED` and the TV settings key is `SYSTEM` so neither wraps. 0.3.7 removes the redundant header icons, horizontal volume bar, D-pad crosshair and lower media strip; centers the transport controls in the now-playing card; adds a reconnect state, a keep-screen-awake setting, and phone-microphone voice search through the remote protocol. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
 
 ## Requirements
 
@@ -52,15 +57,16 @@ The Apps tab is a searchable grid with categories, favorites and a refresh actio
 - Phone and TV on the same local network. mDNS must be allowed for automatic discovery; otherwise add the TV by IP.
 - For the one-tap app shortcuts, the TV needs a launcher that handles `market://launch?id=<package>`. The **CleanYourTV launcher** installed on this TV does (its `AppLaunchActivity`), and so does the stock Google TV launcher.
 - For the now-playing line, the TV launcher needs notification-listener access. Grant it once with the command in [`docs/TV_CATALOG.md`](docs/TV_CATALOG.md); without it the rest of the remote still works.
+- Voice search uses the phone microphone and asks for `RECORD_AUDIO` permission the first time.
 
 ## Install (sideload)
 
-1. Copy `dist/vezz-remote-0.3.6.apk` to the phone (or use `adb install -r`).
+1. Copy `dist/vezz-remote-0.3.7.apk` to the phone (or use `adb install -r`).
 2. Open the APK and allow installs from that source when prompted.
 3. Turn the TV on and make sure the phone is on the same Wi-Fi.
 
 ```bash
-adb install -r dist/vezz-remote-0.3.6.apk
+adb install -r dist/vezz-remote-0.3.7.apk
 ```
 
 The APK is signed with the standard Android debug key. That is fine for a personal sideload; it is not a Play Store release.

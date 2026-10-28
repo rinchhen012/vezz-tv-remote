@@ -1,5 +1,10 @@
 package com.rinchhen.vezzremote.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +21,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FastForward
+import androidx.compose.material.icons.outlined.FastRewind
 import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material3.AlertDialog
@@ -33,13 +43,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.rinchhen.vezzremote.data.TvApp
 import com.rinchhen.vezzremote.data.TvCatalogClient
-import com.rinchhen.vezzremote.data.TvDevice
 import com.rinchhen.vezzremote.protocol.RemoteClient
 import com.rinchhen.vezzremote.protocol.RemoteKey
 import com.rinchhen.vezzremote.ui.components.AccentButton
@@ -48,13 +59,14 @@ import com.rinchhen.vezzremote.ui.components.AppIcon
 import com.rinchhen.vezzremote.ui.components.Dpad
 import com.rinchhen.vezzremote.ui.components.HdmiRow
 import com.rinchhen.vezzremote.ui.components.KeyboardSheet
-import com.rinchhen.vezzremote.ui.components.MediaControls
 import com.rinchhen.vezzremote.ui.components.MonoTag
 import com.rinchhen.vezzremote.ui.components.OutlineButton
 import com.rinchhen.vezzremote.ui.components.Panel
+import com.rinchhen.vezzremote.ui.components.RoundKey
 import com.rinchhen.vezzremote.ui.components.SectionLabel
 import com.rinchhen.vezzremote.ui.components.StatusDot
 import com.rinchhen.vezzremote.ui.components.VolumeRocker
+import com.rinchhen.vezzremote.ui.components.VoiceSheet
 import com.rinchhen.vezzremote.ui.theme.Acid
 import com.rinchhen.vezzremote.ui.theme.Danger
 import com.rinchhen.vezzremote.ui.theme.Line
@@ -65,27 +77,57 @@ import com.rinchhen.vezzremote.ui.theme.PlexMono
 
 @Composable
 fun RemoteContent(
-    device: TvDevice?,
     state: RemoteClient.State,
     volume: RemoteClient.VolumeState,
     currentApp: String,
     isOn: Boolean,
     haptics: Boolean,
     leftHanded: Boolean,
+    keepScreenOn: Boolean,
+    reconnecting: Boolean,
     apps: List<TvApp>,
     nowPlaying: TvCatalogClient.NowPlaying?,
+    voiceState: MainViewModel.VoiceState,
     onKey: (RemoteKey) -> Unit,
     onText: (String) -> Unit,
     onTextAndEnter: (String) -> Unit,
     onClear: () -> Unit,
+    onVoiceStart: () -> Unit,
+    onVoiceStop: () -> Unit,
+    onVoiceDismiss: () -> Unit,
     onReconnect: () -> Unit,
 ) {
     var showKeyboard by rememberSaveable { mutableStateOf(false) }
     var showPowerConfirm by rememberSaveable { mutableStateOf(false) }
     val view = LocalView.current
+    val context = LocalContext.current
+    val micPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            onVoiceStart()
+        } else {
+            Toast.makeText(
+                context,
+                "Microphone permission is needed for voice search",
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+    val requestVoice = {
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO,
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            onVoiceStart()
+        } else {
+            micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
 
-    DisposableEffect(Unit) {
-        view.keepScreenOn = true
+    DisposableEffect(keepScreenOn) {
+        view.keepScreenOn = keepScreenOn
         onDispose { view.keepScreenOn = false }
     }
 
@@ -101,13 +143,15 @@ fun RemoteContent(
     ) {
         item {
             StatusStrip(
-                device = device,
                 state = state,
                 volume = volume,
                 current = current,
                 currentApp = currentApp,
                 isOn = isOn,
+                haptics = haptics,
+                reconnecting = reconnecting,
                 nowPlaying = nowPlaying,
+                onKey = onKey,
                 onReconnect = onReconnect,
             )
         }
@@ -151,10 +195,6 @@ fun RemoteContent(
         }
 
         item {
-            MediaControls(onKey = onKey, haptics = haptics)
-        }
-
-        item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -174,6 +214,13 @@ fun RemoteContent(
                         showKeyboard = true
                     },
                     modifier = Modifier.weight(1f),
+                    haptics = haptics,
+                )
+                RoundKey(
+                    icon = Icons.Outlined.Mic,
+                    contentDescription = "Voice search",
+                    onClick = requestVoice,
+                    size = 56.dp,
                     haptics = haptics,
                 )
             }
@@ -219,17 +266,25 @@ fun RemoteContent(
             },
         )
     }
+
+    VoiceSheet(
+        state = voiceState,
+        onStop = onVoiceStop,
+        onDismiss = onVoiceDismiss,
+    )
 }
 
 @Composable
 private fun StatusStrip(
-    device: TvDevice?,
     state: RemoteClient.State,
     volume: RemoteClient.VolumeState,
     current: TvApp?,
     currentApp: String,
     isOn: Boolean,
+    haptics: Boolean,
+    reconnecting: Boolean,
     nowPlaying: TvCatalogClient.NowPlaying?,
+    onKey: (RemoteKey) -> Unit,
     onReconnect: () -> Unit,
 ) {
     val connected = state is RemoteClient.State.Connected
@@ -275,29 +330,6 @@ private fun StatusStrip(
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                 )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    StatusDot(
-                        color = when {
-                            connected -> Acid
-                            error != null -> Danger
-                            else -> PaperFaint
-                        },
-                    )
-                    Text(
-                        when {
-                            connected -> "CONNECTED"
-                            error != null -> "OFFLINE"
-                            disconnected -> "NOT CONNECTED"
-                            else -> "CONNECTING…"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = PaperMuted,
-                        maxLines = 1,
-                    )
-                }
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
@@ -320,17 +352,16 @@ private fun StatusStrip(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MonoTag(device?.name ?: "TV")
             MonoTag(if (isOn) "SCREEN ON" else "STANDBY")
             Spacer(modifier = Modifier.weight(1f))
-            if (error != null || disconnected) {
+            if ((error != null && !reconnecting) || disconnected) {
                 TextButton(onClick = onReconnect) {
                     Text("RECONNECT", style = MaterialTheme.typography.labelSmall, color = Acid)
                 }
             }
         }
 
-        if (error != null) {
+        if (error != null && !reconnecting) {
             Text(
                 friendlyError(error.message),
                 style = MaterialTheme.typography.labelSmall,
@@ -339,7 +370,7 @@ private fun StatusStrip(
             )
         }
 
-        if (now != null) {
+        if (now != null && connected && isOn && !reconnecting) {
             val playAccent = if (nowPlaying.state == "PLAYING") Acid else PaperMuted
             Box(
                 modifier = Modifier
@@ -383,6 +414,36 @@ private fun StatusStrip(
                     color = PaperMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RoundKey(
+                    icon = Icons.Outlined.FastRewind,
+                    contentDescription = "Rewind",
+                    onClick = { onKey(RemoteKey.Rewind) },
+                    size = 44.dp,
+                    haptics = haptics,
+                )
+                RoundKey(
+                    icon = if (nowPlaying.state == "PLAYING") Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                    contentDescription = "Play or pause",
+                    onClick = { onKey(RemoteKey.PlayPause) },
+                    size = 44.dp,
+                    accent = true,
+                    haptics = haptics,
+                )
+                RoundKey(
+                    icon = Icons.Outlined.FastForward,
+                    contentDescription = "Fast forward",
+                    onClick = { onKey(RemoteKey.FastForward) },
+                    size = 44.dp,
+                    haptics = haptics,
                 )
             }
             if (nowPlaying.durationMs > 0L) {

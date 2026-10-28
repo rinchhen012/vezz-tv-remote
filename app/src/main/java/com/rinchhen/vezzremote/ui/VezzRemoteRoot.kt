@@ -68,15 +68,18 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
     val discovered by viewModel.discoveredDevices.collectAsStateWithLifecycle()
     val active by viewModel.activeDevice.collectAsStateWithLifecycle()
     val remoteState by viewModel.remoteState.collectAsStateWithLifecycle()
+    val reconnecting by viewModel.reconnecting.collectAsStateWithLifecycle()
     val volume by viewModel.volume.collectAsStateWithLifecycle()
     val currentApp by viewModel.currentApp.collectAsStateWithLifecycle()
     val isOn by viewModel.isOn.collectAsStateWithLifecycle()
     val pairing by viewModel.pairing.collectAsStateWithLifecycle()
     val haptics by viewModel.haptics.collectAsStateWithLifecycle()
     val leftHanded by viewModel.leftHanded.collectAsStateWithLifecycle()
+    val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val identityReady by viewModel.identityReady.collectAsStateWithLifecycle()
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
+    val voiceState by viewModel.voiceState.collectAsStateWithLifecycle()
 
     LaunchedEffect(active?.id) {
         if (active != null && screen == Screen.Devices) screen = Screen.Remote
@@ -98,6 +101,7 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
             AppHeader(
                 active = active,
                 state = remoteState,
+                reconnecting = reconnecting,
             )
         },
         bottomBar = {
@@ -117,19 +121,24 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
         ) { target ->
             when (target) {
                 Screen.Remote -> RemoteContent(
-                    device = active,
                     state = remoteState,
                     volume = volume,
                     currentApp = currentApp,
                     isOn = isOn,
                     haptics = haptics,
                     leftHanded = leftHanded,
+                    keepScreenOn = keepScreenOn,
+                    reconnecting = reconnecting,
                     apps = apps,
                     nowPlaying = nowPlaying,
+                    voiceState = voiceState,
                     onKey = viewModel::sendKey,
                     onText = viewModel::sendText,
                     onTextAndEnter = viewModel::sendTextAndEnter,
                     onClear = viewModel::clearText,
+                    onVoiceStart = viewModel::startVoiceSearch,
+                    onVoiceStop = viewModel::stopVoice,
+                    onVoiceDismiss = viewModel::clearVoiceError,
                     onReconnect = viewModel::reconnect,
                 )
 
@@ -159,11 +168,13 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
                     identityStorage = viewModel.identityStorage,
                     haptics = haptics,
                     leftHanded = leftHanded,
+                    keepScreenOn = keepScreenOn,
                     paired = paired,
                     activeDevice = active,
                     remoteState = remoteState,
                     onHaptics = viewModel::setHaptics,
                     onLeftHanded = viewModel::setLeftHanded,
+                    onKeepScreenOn = viewModel::setKeepScreenOn,
                     onForget = viewModel::forget,
                     onOpenDevices = { screen = Screen.Devices },
                     onSendLink = viewModel::sendAppLink,
@@ -184,6 +195,7 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
 private fun AppHeader(
     active: com.rinchhen.vezzremote.data.TvDevice?,
     state: RemoteClient.State,
+    reconnecting: Boolean,
 ) {
     val connected = state is RemoteClient.State.Connected
     Column(modifier = Modifier.statusBarsPadding()) {
@@ -227,7 +239,8 @@ private fun AppHeader(
                                 when (state) {
                                     is RemoteClient.State.Connected -> "CONNECTED"
                                     is RemoteClient.State.Connecting -> "CONNECTING"
-                                    is RemoteClient.State.Error -> "OFFLINE"
+                                    is RemoteClient.State.Error ->
+                                        if (reconnecting) "RECONNECTING" else "OFFLINE"
                                     RemoteClient.State.Disconnected -> "NOT CONNECTED"
                                 },
                             )

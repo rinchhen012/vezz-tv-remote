@@ -49,11 +49,13 @@ fun SettingsContent(
     identityStorage: String,
     haptics: Boolean,
     leftHanded: Boolean,
+    keepScreenOn: Boolean,
     paired: List<TvDevice>,
     activeDevice: TvDevice?,
     remoteState: RemoteClient.State,
     onHaptics: (Boolean) -> Unit,
     onLeftHanded: (Boolean) -> Unit,
+    onKeepScreenOn: (Boolean) -> Unit,
     onForget: (TvDevice) -> Unit,
     onOpenDevices: () -> Unit,
     onSendLink: (String) -> Unit,
@@ -150,6 +152,13 @@ fun SettingsContent(
                     subtitle = "Volume on the right",
                     checked = leftHanded,
                     onCheckedChange = onLeftHanded,
+                )
+                Hairline()
+                SwitchRow(
+                    title = "Keep screen awake",
+                    subtitle = "Stop the phone sleeping while the remote is open",
+                    checked = keepScreenOn,
+                    onCheckedChange = onKeepScreenOn,
                 )
             }
         }

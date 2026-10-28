@@ -16,6 +16,10 @@ import com.rinchhen.vezzremote.proto.remote.RemoteKeyInject
 import com.rinchhen.vezzremote.proto.remote.RemoteMessage
 import com.rinchhen.vezzremote.proto.remote.RemotePingResponse
 import com.rinchhen.vezzremote.proto.remote.RemoteSetActive
+import com.rinchhen.vezzremote.proto.remote.RemoteVoiceBegin
+import com.rinchhen.vezzremote.proto.remote.RemoteVoiceEnd
+import com.rinchhen.vezzremote.proto.remote.RemoteVoicePayload
+import com.google.protobuf.ByteString
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -84,6 +88,7 @@ class RemoteClient(
 
     private var imeCounter = 0
     private var fieldCounter = 0
+    private var pendingVoice: CompletableDeferred<Int>? = null
 
     suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
         disconnect()
@@ -196,12 +201,65 @@ class RemoteClient(
         )
     }
 
+    suspend fun startVoiceSession(timeoutMs: Long = 2_500): Int? {
+        if (activeFeatures and FEATURE_VOICE == 0) return null
+        if (pendingVoice != null) return null
+        val deferred = CompletableDeferred<Int>()
+        pendingVoice = deferred
+        return try {
+            sendKey(RemoteKey.Search)
+            val sessionId = withTimeoutOrNull(timeoutMs) { deferred.await() }
+            if (sessionId != null) {
+                enqueue(
+                    RemoteMessage.newBuilder()
+                        .setRemoteVoiceBegin(
+                            RemoteVoiceBegin.newBuilder().setSessionId(sessionId),
+                        )
+                        .build(),
+                )
+            }
+            sessionId
+        } finally {
+            pendingVoice = null
+        }
+    }
+
+    fun sendVoiceChunk(samples: ByteArray, sessionId: Int) {
+        if (samples.isEmpty()) return
+        var offset = 0
+        while (offset < samples.size) {
+            val length = minOf(VOICE_CHUNK_MAX, samples.size - offset)
+            var chunk = samples.copyOfRange(offset, offset + length)
+            if (chunk.size < VOICE_CHUNK_MIN) chunk = chunk.copyOf(VOICE_CHUNK_MIN)
+            enqueue(
+                RemoteMessage.newBuilder()
+                    .setRemoteVoicePayload(
+                        RemoteVoicePayload.newBuilder()
+                            .setSessionId(sessionId)
+                            .setSamples(ByteString.copyFrom(chunk)),
+                    )
+                    .build(),
+            )
+            offset += length
+        }
+    }
+
+    fun endVoice(sessionId: Int) {
+        enqueue(
+            RemoteMessage.newBuilder()
+                .setRemoteVoiceEnd(RemoteVoiceEnd.newBuilder().setSessionId(sessionId))
+                .build(),
+        )
+    }
+
     fun launchPackage(packageName: String) {
         sendAppLink("market://launch?id=$packageName")
     }
 
     fun disconnect() {
         manualClose = true
+        pendingVoice?.cancel()
+        pendingVoice = null
         ready = null
         readerJob?.cancel()
         readerJob = null
@@ -306,6 +364,10 @@ class RemoteClient(
                 Log.d(TAG, "IME show request field=$fieldCounter")
             }
 
+            message.hasRemoteVoiceBegin() -> {
+                pendingVoice?.complete(message.remoteVoiceBegin.sessionId)
+            }
+
             message.hasRemoteError() -> {
                 fail("The TV reported a remote protocol error")
             }
@@ -328,6 +390,8 @@ class RemoteClient(
         if (manualClose) return
         Log.w(TAG, "Remote session failed: $message")
         manualClose = true
+        pendingVoice?.cancel()
+        pendingVoice = null
         ready?.completeExceptionally(IllegalStateException(message))
         readerJob?.cancel()
         writerJob?.cancel()
@@ -344,10 +408,14 @@ class RemoteClient(
         const val FEATURE_PING = 1
         const val FEATURE_KEY = 2
         const val FEATURE_IME = 4
+        const val FEATURE_VOICE = 8
         const val FEATURE_POWER = 32
         const val FEATURE_VOLUME = 64
         const val FEATURE_APP_LINK = 512
+        const val VOICE_CHUNK_MAX = 20 * 1024
+        const val VOICE_CHUNK_MIN = 8 * 1024
         const val REQUESTED_FEATURES =
-            FEATURE_PING or FEATURE_KEY or FEATURE_IME or FEATURE_POWER or FEATURE_VOLUME or FEATURE_APP_LINK
+            FEATURE_PING or FEATURE_KEY or FEATURE_IME or FEATURE_VOICE or
+                FEATURE_POWER or FEATURE_VOLUME or FEATURE_APP_LINK
     }
 }
