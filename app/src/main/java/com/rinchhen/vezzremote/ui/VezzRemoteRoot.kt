@@ -98,8 +98,6 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
             AppHeader(
                 active = active,
                 state = remoteState,
-                onOpenDevices = { screen = Screen.Devices },
-                onOpenSettings = { screen = Screen.Settings },
             )
         },
         bottomBar = {
@@ -186,8 +184,6 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
 private fun AppHeader(
     active: com.rinchhen.vezzremote.data.TvDevice?,
     state: RemoteClient.State,
-    onOpenDevices: () -> Unit,
-    onOpenSettings: () -> Unit,
 ) {
     val connected = state is RemoteClient.State.Connected
     Column(modifier = Modifier.statusBarsPadding()) {
@@ -242,27 +238,8 @@ private fun AppHeader(
                     )
                 }
             }
-            HeaderAction(Icons.Outlined.Tv, "TVs", onOpenDevices)
-            HeaderAction(Icons.Outlined.Settings, "Settings", onOpenSettings)
         }
         Hairline()
-    }
-}
-
-@Composable
-private fun HeaderAction(
-    icon: ImageVector,
-    description: String,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .border(1.dp, Line, RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = description, tint = PaperMuted, modifier = Modifier.size(19.dp))
     }
 }
 

@@ -1,12 +1,18 @@
 package com.rinchhen.vezzremote.ui.components
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
@@ -34,13 +41,33 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SettingsInputHdmi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.rinchhen.vezzremote.data.TvApp
 import com.rinchhen.vezzremote.protocol.RemoteClient
@@ -49,8 +76,14 @@ import com.rinchhen.vezzremote.ui.theme.Acid
 import com.rinchhen.vezzremote.ui.theme.Ink0
 import com.rinchhen.vezzremote.ui.theme.Line
 import com.rinchhen.vezzremote.ui.theme.LineStrong
+import com.rinchhen.vezzremote.ui.theme.OnAcid
 import com.rinchhen.vezzremote.ui.theme.Paper
 import com.rinchhen.vezzremote.ui.theme.PaperMuted
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlin.math.atan2
+import kotlin.math.hypot
 
 @Composable
 fun Dpad(
@@ -58,69 +91,176 @@ fun Dpad(
     haptics: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val view = LocalView.current
+    val density = LocalDensity.current
+    var pressed by remember { mutableStateOf<DpadZone?>(null) }
+    val okScale by animateFloatAsState(
+        if (pressed == DpadZone.Ok) 0.94f else 1f,
+        animationSpec = tween(110),
+        label = "dpad-ok",
+    )
+
     Box(
         modifier = modifier
             .size(232.dp)
             .clip(CircleShape)
             .background(Ink0)
-            .border(1.dp, LineStrong, CircleShape),
+            .border(1.dp, LineStrong, CircleShape)
+            .pointerInput(Unit) {
+                val okRadius = with(density) { 42.dp.toPx() }
+                val outerRadius = minOf(size.width, size.height) / 2f
+                detectTapGestures(
+                    onPress = {
+                        val zone = dpadZone(it, size, okRadius, outerRadius)
+                        if (zone != null) {
+                            pressed = zone
+                            if (haptics) {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
+                            onKey(zone.key)
+                        }
+                        tryAwaitRelease()
+                        pressed = null
+                    },
+                )
+            }
+            .semantics {
+                contentDescription = "Directional pad"
+                customActions = listOf(
+                    CustomAccessibilityAction("Up") { onKey(RemoteKey.Up); true },
+                    CustomAccessibilityAction("Right") { onKey(RemoteKey.Right); true },
+                    CustomAccessibilityAction("Down") { onKey(RemoteKey.Down); true },
+                    CustomAccessibilityAction("Left") { onKey(RemoteKey.Left); true },
+                    CustomAccessibilityAction("OK") { onKey(RemoteKey.Ok); true },
+                )
+            },
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .padding(10.dp)
-                .border(1.dp, Line, CircleShape),
-        )
-        RoundKey(
-            icon = Icons.Outlined.KeyboardArrowUp,
-            contentDescription = "Up",
-            onClick = { onKey(RemoteKey.Up) },
+        Canvas(Modifier.matchParentSize()) {
+            val outer = size.minDimension / 2f
+            val inner = 42.dp.toPx()
+            val active = pressed
+            if (active != null && active != DpadZone.Ok) {
+                val start = when (active) {
+                    DpadZone.Right -> -45f
+                    DpadZone.Down -> 45f
+                    DpadZone.Left -> 135f
+                    DpadZone.Up -> 225f
+                    DpadZone.Ok -> 0f
+                }
+                val rOuter = outer - 2.dp.toPx()
+                val rInner = inner + 3.dp.toPx()
+                val sector = Path().apply {
+                    arcTo(
+                        Rect(center.x - rOuter, center.y - rOuter, center.x + rOuter, center.y + rOuter),
+                        start,
+                        90f,
+                        true,
+                    )
+                    arcTo(
+                        Rect(center.x - rInner, center.y - rInner, center.x + rInner, center.y + rInner),
+                        start + 90f,
+                        -90f,
+                        false,
+                    )
+                    close()
+                }
+                drawPath(sector, Acid.copy(alpha = 0.14f))
+            }
+            drawCircle(Line, radius = outer - 10.dp.toPx(), style = Stroke(1.dp.toPx()))
+            drawLine(
+                Line,
+                Offset(center.x, center.y - outer),
+                Offset(center.x, center.y + outer),
+                strokeWidth = 1.dp.toPx(),
+            )
+            drawLine(
+                Line,
+                Offset(center.x - outer, center.y),
+                Offset(center.x + outer, center.y),
+                strokeWidth = 1.dp.toPx(),
+            )
+        }
+
+        Icon(
+            Icons.Outlined.KeyboardArrowUp,
+            contentDescription = null,
+            tint = if (pressed == DpadZone.Up) Acid else Paper,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 12.dp),
-            size = 60.dp,
-            haptics = haptics,
+                .padding(top = 18.dp)
+                .size(32.dp),
         )
-        RoundKey(
-            icon = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
-            contentDescription = "Left",
-            onClick = { onKey(RemoteKey.Left) },
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = 12.dp),
-            size = 60.dp,
-            haptics = haptics,
-        )
-        RoundKey(
-            icon = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-            contentDescription = "Right",
-            onClick = { onKey(RemoteKey.Right) },
+        Icon(
+            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = if (pressed == DpadZone.Right) Acid else Paper,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 12.dp),
-            size = 60.dp,
-            haptics = haptics,
+                .padding(end = 18.dp)
+                .size(32.dp),
         )
-        RoundKey(
-            icon = Icons.Outlined.KeyboardArrowDown,
-            contentDescription = "Down",
-            onClick = { onKey(RemoteKey.Down) },
+        Icon(
+            Icons.Outlined.KeyboardArrowDown,
+            contentDescription = null,
+            tint = if (pressed == DpadZone.Down) Acid else Paper,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp),
-            size = 60.dp,
-            haptics = haptics,
+                .padding(bottom = 18.dp)
+                .size(32.dp),
         )
-        RoundKey(
-            icon = Icons.Outlined.Check,
-            contentDescription = "OK",
-            onClick = { onKey(RemoteKey.Ok) },
-            modifier = Modifier.align(Alignment.Center),
-            size = 84.dp,
-            accent = true,
-            haptics = haptics,
+        Icon(
+            Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+            contentDescription = null,
+            tint = if (pressed == DpadZone.Left) Acid else Paper,
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 18.dp)
+                .size(32.dp),
         )
+
+        Box(
+            modifier = Modifier
+                .size(84.dp)
+                .graphicsLayer {
+                    scaleX = okScale
+                    scaleY = okScale
+                }
+                .clip(CircleShape)
+                .background(Acid)
+                .border(1.dp, Acid, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Check,
+                contentDescription = null,
+                tint = OnAcid,
+                modifier = Modifier.size(34.dp),
+            )
+        }
+    }
+}
+
+private enum class DpadZone(val key: RemoteKey) {
+    Up(RemoteKey.Up),
+    Right(RemoteKey.Right),
+    Down(RemoteKey.Down),
+    Left(RemoteKey.Left),
+    Ok(RemoteKey.Ok),
+}
+
+private fun dpadZone(offset: Offset, size: IntSize, okRadius: Float, outerRadius: Float): DpadZone? {
+    val dx = offset.x - size.width / 2f
+    val dy = offset.y - size.height / 2f
+    val distance = hypot(dx, dy)
+    if (distance > outerRadius) return null
+    if (distance <= okRadius) return DpadZone.Ok
+    val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble()))
+    return when {
+        angle >= -45.0 && angle < 45.0 -> DpadZone.Right
+        angle >= 45.0 && angle < 135.0 -> DpadZone.Down
+        angle >= 135.0 || angle < -135.0 -> DpadZone.Left
+        else -> DpadZone.Up
     }
 }
 
@@ -131,11 +271,16 @@ fun VolumeRocker(
     haptics: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val view = LocalView.current
+    val scope = rememberCoroutineScope()
+    var pressed by remember { mutableStateOf<VolumeZone?>(null) }
     val fraction = if (volume.max > 0) {
         (volume.level.toFloat() / volume.max).coerceIn(0f, 1f)
     } else {
         0f
     }
+    val shape = RoundedCornerShape(32.dp)
+
     Column(
         modifier = modifier.width(64.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -146,44 +291,130 @@ fun VolumeRocker(
             style = MaterialTheme.typography.labelSmall,
             color = if (volume.muted) MaterialTheme.colorScheme.error else PaperMuted,
         )
-        RoundKey(
-            icon = Icons.AutoMirrored.Outlined.VolumeUp,
-            contentDescription = "Volume up",
-            onClick = { onKey(RemoteKey.VolumeUp) },
-            size = 56.dp,
-            haptics = haptics,
-            repeatWhilePressed = true,
-        )
         Box(
             modifier = Modifier
-                .width(2.dp)
-                .height(36.dp)
-                .background(Line),
-            contentAlignment = Alignment.BottomCenter,
+                .width(64.dp)
+                .height(232.dp)
+                .clip(shape)
+                .background(Ink0)
+                .border(1.dp, LineStrong, shape)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onPress = {
+                            val zone = when {
+                                it.y < size.height / 3f -> VolumeZone.Up
+                                it.y < size.height * 2f / 3f -> VolumeZone.Down
+                                else -> VolumeZone.Mute
+                            }
+                            pressed = zone
+                            var sentByHold = false
+                            val repeat = if (zone != VolumeZone.Mute) {
+                                scope.launch {
+                                    // Slow, deliberate repeat: 5 is already loud on this TV.
+                                    delay(900)
+                                    while (isActive) {
+                                        sentByHold = true
+                                        if (haptics) {
+                                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                        }
+                                        onKey(zone.key)
+                                        delay(700)
+                                    }
+                                }
+                            } else {
+                                null
+                            }
+                            val released = tryAwaitRelease()
+                            repeat?.cancel()
+                            pressed = null
+                            if (released && !sentByHold) {
+                                if (haptics) {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                }
+                                onKey(zone.key)
+                            }
+                        },
+                    )
+                }
+                .semantics {
+                    contentDescription = "Volume rocker"
+                    customActions = listOf(
+                        CustomAccessibilityAction("Volume up") { onKey(RemoteKey.VolumeUp); true },
+                        CustomAccessibilityAction("Volume down") { onKey(RemoteKey.VolumeDown); true },
+                        CustomAccessibilityAction("Mute") { onKey(RemoteKey.Mute); true },
+                    )
+                },
+            contentAlignment = Alignment.Center,
         ) {
             if (fraction > 0f) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .fillMaxHeight(fraction)
-                        .background(Acid),
+                        .align(Alignment.BottomCenter)
+                        .background(Acid.copy(alpha = 0.13f)),
+                )
+            }
+            Column(Modifier.fillMaxSize()) {
+                VolumeZoneBox(
+                    zone = VolumeZone.Up,
+                    icon = Icons.AutoMirrored.Outlined.VolumeUp,
+                    pressed = pressed,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Line),
+                )
+                VolumeZoneBox(
+                    zone = VolumeZone.Down,
+                    icon = Icons.AutoMirrored.Outlined.VolumeDown,
+                    pressed = pressed,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Line),
+                )
+                VolumeZoneBox(
+                    zone = VolumeZone.Mute,
+                    icon = Icons.AutoMirrored.Outlined.VolumeOff,
+                    pressed = pressed,
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
-        RoundKey(
-            icon = Icons.AutoMirrored.Outlined.VolumeDown,
-            contentDescription = "Volume down",
-            onClick = { onKey(RemoteKey.VolumeDown) },
-            size = 56.dp,
-            haptics = haptics,
-            repeatWhilePressed = true,
-        )
-        RoundKey(
-            icon = Icons.AutoMirrored.Outlined.VolumeOff,
-            contentDescription = "Mute",
-            onClick = { onKey(RemoteKey.Mute) },
-            size = 56.dp,
-            haptics = haptics,
+    }
+}
+
+private enum class VolumeZone(val key: RemoteKey) {
+    Up(RemoteKey.VolumeUp),
+    Down(RemoteKey.VolumeDown),
+    Mute(RemoteKey.Mute),
+}
+
+@Composable
+private fun VolumeZoneBox(
+    zone: VolumeZone,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    pressed: VolumeZone?,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(if (pressed == zone) Acid.copy(alpha = 0.10f) else Color.Transparent),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (pressed == zone) Acid else Paper,
+            modifier = Modifier.size(26.dp),
         )
     }
 }

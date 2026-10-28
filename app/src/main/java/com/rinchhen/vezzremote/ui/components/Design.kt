@@ -30,14 +30,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,8 +58,6 @@ import com.rinchhen.vezzremote.ui.theme.Acid
 import com.rinchhen.vezzremote.ui.theme.Ink0
 import com.rinchhen.vezzremote.ui.theme.Ink1
 import com.rinchhen.vezzremote.ui.theme.Ink2
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import com.rinchhen.vezzremote.ui.theme.Line
 import com.rinchhen.vezzremote.ui.theme.LineStrong
 import com.rinchhen.vezzremote.ui.theme.OnAcid
@@ -340,35 +334,14 @@ fun RoundKey(
     size: Dp = 48.dp,
     accent: Boolean = false,
     haptics: Boolean = true,
-    repeatWhilePressed: Boolean = false,
 ) {
     val view = LocalView.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val currentOnClick by rememberUpdatedState(onClick)
-    var repeating by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (pressed) 0.94f else 1f, animationSpec = tween(120), label = "round-key")
     val background = if (accent) Acid else Ink2
     val content = if (accent) OnAcid else Paper
     val border = if (accent) Acid else LineStrong
-
-    LaunchedEffect(pressed, repeatWhilePressed) {
-        if (!repeatWhilePressed) return@LaunchedEffect
-        if (!pressed) {
-            repeating = false
-            return@LaunchedEffect
-        }
-        repeating = false
-        if (haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-        // A short delay filters out taps; after that, keep sending the key while
-        // the finger is still down. Volume up/down use this to move several steps.
-        delay(350)
-        repeating = true
-        while (isActive) {
-            currentOnClick()
-            delay(100)
-        }
-    }
 
     Box(
         modifier = modifier
@@ -384,10 +357,8 @@ fun RoundKey(
                 interactionSource = interaction,
                 indication = null,
             ) {
-                if (haptics && !repeatWhilePressed) {
-                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                }
-                if (!repeating) currentOnClick()
+                if (haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                onClick()
             },
         contentAlignment = Alignment.Center,
     ) {

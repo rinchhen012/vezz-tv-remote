@@ -236,7 +236,6 @@ private fun StatusStrip(
     val error = state as? RemoteClient.State.Error
     val disconnected = state is RemoteClient.State.Disconnected
     val label = current?.label ?: appLabel(currentApp)
-    val fraction = if (volume.max > 0) (volume.level.toFloat() / volume.max).coerceIn(0f, 1f) else 0f
     val now = nowPlaying?.title?.takeIf { it.isNotBlank() }
     val nowFraction = if (nowPlaying != null && nowPlaying.durationMs > 0L) {
         (nowPlaying.positionMs.toFloat() / nowPlaying.durationMs).coerceIn(0f, 1f)
@@ -310,23 +309,6 @@ private fun StatusStrip(
                     if (volume.muted) "MUTED" else if (volume.max > 0) "VOL / ${volume.max}" else "VOL",
                     style = MaterialTheme.typography.labelSmall,
                     color = PaperMuted,
-                )
-            }
-        }
-
-        if (volume.level >= 0) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp)
-                    .height(2.dp)
-                    .background(Line),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(fraction)
-                        .height(2.dp)
-                        .background(Acid),
                 )
             }
         }
