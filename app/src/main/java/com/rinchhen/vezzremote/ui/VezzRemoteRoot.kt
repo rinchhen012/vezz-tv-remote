@@ -76,6 +76,7 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
     val leftHanded by viewModel.leftHanded.collectAsStateWithLifecycle()
     val identityReady by viewModel.identityReady.collectAsStateWithLifecycle()
     val apps by viewModel.apps.collectAsStateWithLifecycle()
+    val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
 
     LaunchedEffect(active?.id) {
         if (active != null && screen == Screen.Devices) screen = Screen.Remote
@@ -126,12 +127,11 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
                     haptics = haptics,
                     leftHanded = leftHanded,
                     apps = apps,
+                    nowPlaying = nowPlaying,
                     onKey = viewModel::sendKey,
                     onText = viewModel::sendText,
                     onTextAndEnter = viewModel::sendTextAndEnter,
                     onClear = viewModel::clearText,
-                    onLaunchApp = viewModel::launchApp,
-                    onOpenApps = { screen = Screen.Apps },
                     onReconnect = viewModel::reconnect,
                 )
 

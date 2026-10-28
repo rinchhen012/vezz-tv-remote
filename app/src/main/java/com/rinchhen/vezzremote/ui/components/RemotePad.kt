@@ -60,7 +60,7 @@ fun Dpad(
 ) {
     Box(
         modifier = modifier
-            .size(204.dp)
+            .size(232.dp)
             .clip(CircleShape)
             .background(Ink0)
             .border(1.dp, LineStrong, CircleShape),
@@ -78,8 +78,8 @@ fun Dpad(
             onClick = { onKey(RemoteKey.Up) },
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 14.dp),
-            size = 48.dp,
+                .padding(top = 12.dp),
+            size = 60.dp,
             haptics = haptics,
         )
         RoundKey(
@@ -88,8 +88,8 @@ fun Dpad(
             onClick = { onKey(RemoteKey.Left) },
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 14.dp),
-            size = 48.dp,
+                .padding(start = 12.dp),
+            size = 60.dp,
             haptics = haptics,
         )
         RoundKey(
@@ -98,8 +98,8 @@ fun Dpad(
             onClick = { onKey(RemoteKey.Right) },
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 14.dp),
-            size = 48.dp,
+                .padding(end = 12.dp),
+            size = 60.dp,
             haptics = haptics,
         )
         RoundKey(
@@ -108,8 +108,8 @@ fun Dpad(
             onClick = { onKey(RemoteKey.Down) },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 14.dp),
-            size = 48.dp,
+                .padding(bottom = 12.dp),
+            size = 60.dp,
             haptics = haptics,
         )
         RoundKey(
@@ -117,7 +117,7 @@ fun Dpad(
             contentDescription = "OK",
             onClick = { onKey(RemoteKey.Ok) },
             modifier = Modifier.align(Alignment.Center),
-            size = 76.dp,
+            size = 84.dp,
             accent = true,
             haptics = haptics,
         )
@@ -150,7 +150,7 @@ fun VolumeRocker(
             icon = Icons.AutoMirrored.Outlined.VolumeUp,
             contentDescription = "Volume up",
             onClick = { onKey(RemoteKey.VolumeUp) },
-            size = 48.dp,
+            size = 56.dp,
             haptics = haptics,
             repeatWhilePressed = true,
         )
@@ -171,19 +171,19 @@ fun VolumeRocker(
             }
         }
         RoundKey(
-            icon = Icons.AutoMirrored.Outlined.VolumeOff,
-            contentDescription = "Mute",
-            onClick = { onKey(RemoteKey.Mute) },
-            size = 48.dp,
-            haptics = haptics,
-        )
-        RoundKey(
             icon = Icons.AutoMirrored.Outlined.VolumeDown,
             contentDescription = "Volume down",
             onClick = { onKey(RemoteKey.VolumeDown) },
-            size = 48.dp,
+            size = 56.dp,
             haptics = haptics,
             repeatWhilePressed = true,
+        )
+        RoundKey(
+            icon = Icons.AutoMirrored.Outlined.VolumeOff,
+            contentDescription = "Mute",
+            onClick = { onKey(RemoteKey.Mute) },
+            size = 56.dp,
+            haptics = haptics,
         )
     }
 }

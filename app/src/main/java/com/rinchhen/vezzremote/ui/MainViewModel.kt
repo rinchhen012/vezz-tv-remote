@@ -24,6 +24,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -81,6 +82,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _apps = MutableStateFlow(AppCatalog.apps)
     val apps = _apps.asStateFlow()
 
+    private val _nowPlaying = MutableStateFlow<TvCatalogClient.NowPlaying?>(null)
+    val nowPlaying = _nowPlaying.asStateFlow()
+
     val clientName: String get() = identity?.clientName ?: "Preparing phone identity…"
 
     val identityStorage: String
@@ -94,6 +98,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var collectorJob: Job? = null
     private var connectJob: Job? = null
     private var catalogJob: Job? = null
+    private var statusJob: Job? = null
     private var pairingJob: Job? = null
     private var pendingPin: CompletableDeferred<String>? = null
     private var pairingDevice: TvDevice? = null
@@ -219,6 +224,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (connectJob?.isActive == true && _activeDevice.value?.id == device.id) return
         reconnectJob?.cancel()
         reconnectJob = null
+        statusJob?.cancel()
+        statusJob = null
+        _nowPlaying.value = null
         connectJob?.cancel()
         connectJob = null
         remoteClient?.disconnect()
@@ -248,7 +256,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             launch { client.isOn.collect { _isOn.value = it } }
         }
         connectJob = viewModelScope.launch {
-            if (client.connect()) refreshCatalog(device.host)
+            if (client.connect()) {
+                refreshCatalog(device.host)
+                startNowPlayingPolling(device.host)
+            }
+        }
+    }
+
+    private fun startNowPlayingPolling(host: String) {
+        statusJob?.cancel()
+        statusJob = viewModelScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                val now = TvCatalogClient.fetchNowPlaying(host)
+                withContext(Dispatchers.Main) { _nowPlaying.value = now }
+                delay(5_000)
+            }
         }
     }
 
@@ -292,6 +314,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         reconnectAttempt = 0
         reconnectJob?.cancel()
         reconnectJob = null
+        statusJob?.cancel()
+        statusJob = null
+        _nowPlaying.value = null
         connectJob?.cancel()
         connectJob = null
         remoteClient?.disconnect()
@@ -412,6 +437,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         discovery.stop()
         catalogJob?.cancel()
+        statusJob?.cancel()
         reconnectJob?.cancel()
         remoteClient?.disconnect()
         super.onCleared()

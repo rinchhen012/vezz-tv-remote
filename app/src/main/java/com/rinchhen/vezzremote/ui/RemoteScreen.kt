@@ -35,8 +35,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.rinchhen.vezzremote.data.TvApp
+import com.rinchhen.vezzremote.data.TvCatalogClient
 import com.rinchhen.vezzremote.data.TvDevice
 import com.rinchhen.vezzremote.protocol.RemoteClient
 import com.rinchhen.vezzremote.protocol.RemoteKey
@@ -44,7 +46,6 @@ import com.rinchhen.vezzremote.ui.components.AccentButton
 import com.rinchhen.vezzremote.ui.components.ActionGrid
 import com.rinchhen.vezzremote.ui.components.AppIcon
 import com.rinchhen.vezzremote.ui.components.Dpad
-import com.rinchhen.vezzremote.ui.components.FavoriteAppsRow
 import com.rinchhen.vezzremote.ui.components.HdmiRow
 import com.rinchhen.vezzremote.ui.components.KeyboardSheet
 import com.rinchhen.vezzremote.ui.components.MediaControls
@@ -72,12 +73,11 @@ fun RemoteContent(
     haptics: Boolean,
     leftHanded: Boolean,
     apps: List<TvApp>,
+    nowPlaying: TvCatalogClient.NowPlaying?,
     onKey: (RemoteKey) -> Unit,
     onText: (String) -> Unit,
     onTextAndEnter: (String) -> Unit,
     onClear: () -> Unit,
-    onLaunchApp: (TvApp) -> Unit,
-    onOpenApps: () -> Unit,
     onReconnect: () -> Unit,
 ) {
     var showKeyboard by rememberSaveable { mutableStateOf(false) }
@@ -107,6 +107,7 @@ fun RemoteContent(
                 current = current,
                 currentApp = currentApp,
                 isOn = isOn,
+                nowPlaying = nowPlaying,
                 onReconnect = onReconnect,
             )
         }
@@ -123,7 +124,7 @@ fun RemoteContent(
                         Box(
                             modifier = Modifier
                                 .width(1.dp)
-                                .height(196.dp)
+                                .height(220.dp)
                                 .background(Line),
                         )
                         VolumeRocker(volume = volume, onKey = onKey, haptics = haptics)
@@ -132,7 +133,7 @@ fun RemoteContent(
                         Box(
                             modifier = Modifier
                                 .width(1.dp)
-                                .height(196.dp)
+                                .height(220.dp)
                                 .background(Line),
                         )
                         Dpad(onKey = onKey, haptics = haptics)
@@ -176,15 +177,6 @@ fun RemoteContent(
                     haptics = haptics,
                 )
             }
-        }
-
-        item {
-            FavoriteAppsRow(
-                apps = apps.filter { it.favorite },
-                currentApp = currentApp,
-                onLaunch = onLaunchApp,
-                onOpenApps = onOpenApps,
-            )
         }
 
         item {
@@ -237,6 +229,7 @@ private fun StatusStrip(
     current: TvApp?,
     currentApp: String,
     isOn: Boolean,
+    nowPlaying: TvCatalogClient.NowPlaying?,
     onReconnect: () -> Unit,
 ) {
     val connected = state is RemoteClient.State.Connected
@@ -244,6 +237,12 @@ private fun StatusStrip(
     val disconnected = state is RemoteClient.State.Disconnected
     val label = current?.label ?: appLabel(currentApp)
     val fraction = if (volume.max > 0) (volume.level.toFloat() / volume.max).coerceIn(0f, 1f) else 0f
+    val now = nowPlaying?.title?.takeIf { it.isNotBlank() }
+    val nowFraction = if (nowPlaying != null && nowPlaying.durationMs > 0L) {
+        (nowPlaying.positionMs.toFloat() / nowPlaying.durationMs).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
 
     Panel(contentPadding = PaddingValues(14.dp)) {
         Row(
@@ -356,6 +355,70 @@ private fun StatusStrip(
                 color = Danger,
                 modifier = Modifier.padding(top = 4.dp),
             )
+        }
+
+        if (now != null) {
+            val playAccent = if (nowPlaying.state == "PLAYING") Acid else PaperMuted
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+                    .height(1.dp)
+                    .background(Line),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "NOW PLAYING",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PaperMuted,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    nowPlaying.state,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = playAccent,
+                    maxLines = 1,
+                )
+            }
+            Text(
+                now,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Paper,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            nowPlaying.artist?.takeIf { it.isNotBlank() }?.let { artist ->
+                Text(
+                    artist,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = PaperMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (nowPlaying.durationMs > 0L) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                        .height(2.dp)
+                        .background(Line),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(nowFraction)
+                            .height(2.dp)
+                            .background(playAccent),
+                    )
+                }
+            }
         }
     }
 }

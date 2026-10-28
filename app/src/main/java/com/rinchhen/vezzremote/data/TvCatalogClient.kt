@@ -30,10 +30,24 @@ object TvCatalogClient {
         val apps: List<TvApp>,
     )
 
+    data class NowPlaying(
+        val title: String,
+        val artist: String?,
+        val state: String,
+        val positionMs: Long,
+        val durationMs: Long,
+    )
+
     suspend fun fetch(host: String, timeoutMs: Int = 2_500): Catalog? = withContext(Dispatchers.IO) {
         val body = get("http://$host:$PORT/catalog", timeoutMs) ?: return@withContext null
         runCatching { parse(body) }.getOrNull()
     }
+
+    suspend fun fetchNowPlaying(host: String, timeoutMs: Int = 2_000): NowPlaying? =
+        withContext(Dispatchers.IO) {
+            val body = get("http://$host:$PORT/status", timeoutMs) ?: return@withContext null
+            runCatching { parseNowPlaying(body) }.getOrNull()
+        }
 
     suspend fun fetchIcon(host: String, packageName: String, timeoutMs: Int = 3_000): ByteArray? =
         withContext(Dispatchers.IO) {
@@ -68,6 +82,20 @@ object TvCatalogClient {
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun parseNowPlaying(body: String): NowPlaying? {
+        val root = runCatching { JSONObject(body) }.getOrNull() ?: return null
+        if (root.isNull("title")) return null
+        val title = root.optString("title").trim().takeIf { it.isNotEmpty() } ?: return null
+        val artist = root.optString("artist").trim().takeIf { it.isNotEmpty() }
+        return NowPlaying(
+            title = title,
+            artist = artist,
+            state = root.optString("state", "NONE").uppercase(),
+            positionMs = root.optLong("positionMs", -1L),
+            durationMs = root.optLong("durationMs", -1L),
+        )
     }
 
     private fun parse(body: String): Catalog {
