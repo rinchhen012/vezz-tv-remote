@@ -65,6 +65,8 @@ another APK to the TV.
 - `TvCatalogClient` fetches `/catalog` and `/icon/<package>`.
 - `AppIconCache` keeps icons on disk and in memory.
 - `MainViewModel.refreshCatalog()` runs after a successful remote connection and from
-  the Apps tab refresh button.
-- If the endpoint is missing or times out, the bundled `AppCatalog` and gradient letter
+  the Apps tab refresh button. It retries once if the TV has just booted.
+- When `/catalog` returns `name`, the phone renames its saved device from the
+  `ATVREMOTE/<mac>` certificate name to the TV's real name (`Main TV`).
+- If the endpoint is missing or times out, the bundled `AppCatalog` and neutral letter
   tiles are used and the remote remains fully functional.
