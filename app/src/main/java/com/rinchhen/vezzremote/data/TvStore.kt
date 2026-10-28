@@ -84,6 +84,39 @@ class TvStore(context: Context) {
         get() = prefs.getBoolean(KEY_KEEP_SCREEN_ON, true)
         set(value) = prefs.edit().putBoolean(KEY_KEEP_SCREEN_ON, value).apply()
 
+    var favoritePackages: Set<String>
+        get() = synchronized(this) {
+            prefs.getStringSet(KEY_FAVORITES, null)?.toSet()
+                ?: AppCatalog.favorites.map { it.packageName }.toSet()
+        }
+        set(value) = synchronized(this) {
+            prefs.edit().putStringSet(KEY_FAVORITES, value.toSet()).apply()
+        }
+
+    var recentPackages: List<String>
+        get() = synchronized(this) {
+            prefs.getString(KEY_RECENTS, null)
+                ?.split('\n')
+                ?.filter { it.isNotBlank() }
+                ?: emptyList()
+        }
+        set(value) = synchronized(this) {
+            prefs.edit().putString(KEY_RECENTS, value.joinToString("\n")).apply()
+        }
+
+    fun toggleFavorite(packageName: String): Set<String> = synchronized(this) {
+        val current = favoritePackages.toMutableSet()
+        if (!current.add(packageName)) current.remove(packageName)
+        favoritePackages = current
+        current.toSet()
+    }
+
+    fun recordRecent(packageName: String): List<String> = synchronized(this) {
+        val updated = (listOf(packageName) + recentPackages.filterNot { it == packageName }).take(8)
+        recentPackages = updated
+        updated
+    }
+
     private fun write(devices: List<TvDevice>) {
         val array = JSONArray()
         devices.forEach { array.put(it.toJson()) }
@@ -117,5 +150,7 @@ class TvStore(context: Context) {
         const val KEY_HAPTICS = "haptics"
         const val KEY_LEFT_HANDED = "left_handed"
         const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
+        const val KEY_FAVORITES = "favorite_packages"
+        const val KEY_RECENTS = "recent_packages"
     }
 }

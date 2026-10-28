@@ -5,10 +5,13 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -26,14 +29,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,8 +50,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import com.rinchhen.vezzremote.data.AppCatalog
 import com.rinchhen.vezzremote.data.AppIconCache
 import com.rinchhen.vezzremote.data.TvApp
@@ -58,6 +70,9 @@ import com.rinchhen.vezzremote.ui.theme.Acid
 import com.rinchhen.vezzremote.ui.theme.Ink0
 import com.rinchhen.vezzremote.ui.theme.Ink1
 import com.rinchhen.vezzremote.ui.theme.Ink2
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeoutOrNull
 import com.rinchhen.vezzremote.ui.theme.Line
 import com.rinchhen.vezzremote.ui.theme.LineStrong
 import com.rinchhen.vezzremote.ui.theme.OnAcid
@@ -286,6 +301,8 @@ fun Keycap(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     haptics: Boolean = true,
+    onLongStart: (() -> Unit)? = null,
+    onLongEnd: (() -> Unit)? = null,
 ) {
     val view = LocalView.current
     val shape = RoundedCornerShape(10.dp)
@@ -294,6 +311,39 @@ fun Keycap(
     val background by animateColorAsState(if (pressed) Ink1 else Ink2, animationSpec = tween(120), label = "keycap-bg")
     val border by animateColorAsState(if (pressed) Acid else Line, animationSpec = tween(120), label = "keycap-border")
     val content = if (enabled) Paper else PaperFaint
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentLongStart by rememberUpdatedState(onLongStart)
+    val currentLongEnd by rememberUpdatedState(onLongEnd)
+
+    val gesture = if (onLongStart != null) {
+        Modifier.pointerInput(Unit) {
+            detectTapGestures(
+                onPress = {
+                    val early = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        tryAwaitRelease()
+                    }
+                    if (early == null) {
+                        if (haptics) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        currentLongStart?.invoke()
+                        tryAwaitRelease()
+                        currentLongEnd?.invoke()
+                    } else if (early) {
+                        if (haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        currentOnClick()
+                    }
+                },
+            )
+        }
+    } else {
+        Modifier.clickable(
+            enabled = enabled,
+            interactionSource = interaction,
+            indication = null,
+        ) {
+            if (haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            currentOnClick()
+        }
+    }
 
     Row(
         modifier = modifier
@@ -301,14 +351,7 @@ fun Keycap(
             .clip(shape)
             .background(background)
             .border(1.dp, border, shape)
-            .clickable(
-                enabled = enabled,
-                interactionSource = interaction,
-                indication = null,
-            ) {
-                if (haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                onClick()
-            }
+            .then(gesture)
             .padding(horizontal = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
@@ -334,14 +377,35 @@ fun RoundKey(
     size: Dp = 48.dp,
     accent: Boolean = false,
     haptics: Boolean = true,
+    repeatWhilePressed: Boolean = false,
+    repeatDelayMs: Long = 400L,
+    repeatIntervalMs: Long = 250L,
 ) {
     val view = LocalView.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val currentOnClick by rememberUpdatedState(onClick)
+    var repeating by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (pressed) 0.94f else 1f, animationSpec = tween(120), label = "round-key")
     val background = if (accent) Acid else Ink2
     val content = if (accent) OnAcid else Paper
     val border = if (accent) Acid else LineStrong
+
+    LaunchedEffect(pressed, repeatWhilePressed) {
+        if (!repeatWhilePressed) return@LaunchedEffect
+        if (!pressed) {
+            repeating = false
+            return@LaunchedEffect
+        }
+        repeating = false
+        delay(repeatDelayMs)
+        repeating = true
+        while (isActive) {
+            currentOnClick()
+            if (haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            delay(repeatIntervalMs)
+        }
+    }
 
     Box(
         modifier = modifier
@@ -357,8 +421,10 @@ fun RoundKey(
                 interactionSource = interaction,
                 indication = null,
             ) {
-                if (haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                onClick()
+                if (haptics && (!repeatWhilePressed || !repeating)) {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                }
+                if (!repeating) currentOnClick()
             },
         contentAlignment = Alignment.Center,
     ) {
@@ -465,28 +531,58 @@ fun AppIcon(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppTile(
     app: TvApp,
     running: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
 ) {
+    val haptic = LocalHapticFeedback.current
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick?.let {
+                    {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        it()
+                    }
+                },
+            )
             .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        AppIcon(
-            app = app,
-            packageName = app.packageName,
-            label = app.label,
-            size = 58.dp,
-            showRunning = running,
-        )
+        Box {
+            AppIcon(
+                app = app,
+                packageName = app.packageName,
+                label = app.label,
+                size = 58.dp,
+                showRunning = running,
+            )
+            if (app.favorite) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Ink0),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Filled.Star,
+                        contentDescription = "Favorite",
+                        tint = Acid,
+                        modifier = Modifier.size(10.dp),
+                    )
+                }
+            }
+        }
         Text(
             text = app.label,
             style = MaterialTheme.typography.bodySmall,

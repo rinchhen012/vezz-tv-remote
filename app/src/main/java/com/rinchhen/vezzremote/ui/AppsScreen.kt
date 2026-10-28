@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -45,10 +46,12 @@ import com.rinchhen.vezzremote.ui.theme.Acid
 import com.rinchhen.vezzremote.ui.theme.Line
 import com.rinchhen.vezzremote.ui.theme.Paper
 import com.rinchhen.vezzremote.ui.theme.PaperMuted
+import kotlinx.coroutines.delay
 
 private enum class AppFilter(val title: String) {
     All("All"),
     Favorites("Favorites"),
+    Recent("Recent"),
     Media("Media"),
     Tools("Tools"),
 }
@@ -57,17 +60,22 @@ private enum class AppFilter(val title: String) {
 fun AppsContent(
     apps: List<TvApp>,
     currentApp: String,
+    recentPackages: List<String>,
     onLaunchApp: (TvApp) -> Unit,
+    onToggleFavorite: (TvApp) -> Unit,
     onRefresh: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(AppFilter.All) }
+    var launching by rememberSaveable { mutableStateOf<String?>(null) }
 
+    val recentRank = recentPackages.withIndex().associate { it.value to it.index }
     val filtered = apps
         .filter { app ->
             when (filter) {
                 AppFilter.All -> true
                 AppFilter.Favorites -> app.favorite
+                AppFilter.Recent -> app.packageName in recentRank
                 AppFilter.Media -> app.category == AppCategory.Media
                 AppFilter.Tools -> app.category == AppCategory.Tools
             }
@@ -75,6 +83,20 @@ fun AppsContent(
         .filter { app ->
             query.isBlank() || app.label.contains(query.trim(), ignoreCase = true)
         }
+        .let { list ->
+            if (filter == AppFilter.Recent) {
+                list.sortedBy { recentRank[it.packageName] ?: Int.MAX_VALUE }
+            } else {
+                list
+            }
+        }
+
+    LaunchedEffect(launching) {
+        if (launching != null) {
+            delay(1_500)
+            launching = null
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -129,6 +151,21 @@ fun AppsContent(
             }
         }
 
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(18.dp),
+        ) {
+            launching?.let { name ->
+                Text(
+                    "LAUNCHING ${name.uppercase()}…",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Acid,
+                    maxLines = 1,
+                )
+            }
+        }
+
         if (filtered.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.TopCenter) {
                 Text(
@@ -151,7 +188,11 @@ fun AppsContent(
                     AppTile(
                         app = app,
                         running = app.packageName == currentApp,
-                        onClick = { onLaunchApp(app) },
+                        onClick = {
+                            launching = app.label
+                            onLaunchApp(app)
+                        },
+                        onLongClick = { onToggleFavorite(app) },
                     )
                 }
             }

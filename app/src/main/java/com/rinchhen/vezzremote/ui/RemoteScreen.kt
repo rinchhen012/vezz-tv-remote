@@ -28,6 +28,8 @@ import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SkipNext
+import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.outlined.Tv
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -89,6 +91,8 @@ fun RemoteContent(
     nowPlaying: TvCatalogClient.NowPlaying?,
     voiceState: MainViewModel.VoiceState,
     onKey: (RemoteKey) -> Unit,
+    onKeyLongStart: (RemoteKey) -> Unit,
+    onKeyLongEnd: (RemoteKey) -> Unit,
     onText: (String) -> Unit,
     onTextAndEnter: (String) -> Unit,
     onClear: () -> Unit,
@@ -164,7 +168,12 @@ fun RemoteContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (leftHanded) {
-                        Dpad(onKey = onKey, haptics = haptics)
+                        Dpad(
+                            onKey = onKey,
+                            onLongStart = onKeyLongStart,
+                            onLongEnd = onKeyLongEnd,
+                            haptics = haptics,
+                        )
                         Box(
                             modifier = Modifier
                                 .width(1.dp)
@@ -180,7 +189,12 @@ fun RemoteContent(
                                 .height(220.dp)
                                 .background(Line),
                         )
-                        Dpad(onKey = onKey, haptics = haptics)
+                        Dpad(
+                            onKey = onKey,
+                            onLongStart = onKeyLongStart,
+                            onLongEnd = onKeyLongEnd,
+                            haptics = haptics,
+                        )
                     }
                 }
             }
@@ -189,6 +203,8 @@ fun RemoteContent(
         item {
             ActionGrid(
                 onKey = onKey,
+                onLongStart = onKeyLongStart,
+                onLongEnd = onKeyLongEnd,
                 onPower = { showPowerConfirm = true },
                 haptics = haptics,
             )
@@ -424,11 +440,21 @@ private fun StatusStrip(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 RoundKey(
+                    icon = Icons.Outlined.SkipPrevious,
+                    contentDescription = "Previous track",
+                    onClick = { onKey(RemoteKey.Previous) },
+                    size = 44.dp,
+                    haptics = haptics,
+                )
+                RoundKey(
                     icon = Icons.Outlined.FastRewind,
                     contentDescription = "Rewind",
                     onClick = { onKey(RemoteKey.Rewind) },
                     size = 44.dp,
                     haptics = haptics,
+                    repeatWhilePressed = true,
+                    repeatDelayMs = 350L,
+                    repeatIntervalMs = 250L,
                 )
                 RoundKey(
                     icon = if (nowPlaying.state == "PLAYING") Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
@@ -442,6 +468,16 @@ private fun StatusStrip(
                     icon = Icons.Outlined.FastForward,
                     contentDescription = "Fast forward",
                     onClick = { onKey(RemoteKey.FastForward) },
+                    size = 44.dp,
+                    haptics = haptics,
+                    repeatWhilePressed = true,
+                    repeatDelayMs = 350L,
+                    repeatIntervalMs = 250L,
+                )
+                RoundKey(
+                    icon = Icons.Outlined.SkipNext,
+                    contentDescription = "Next track",
+                    onClick = { onKey(RemoteKey.Next) },
                     size = 44.dp,
                     haptics = haptics,
                 )

@@ -2,7 +2,7 @@
 
 A small, local-only Android remote for the **HKC / VEZZ "4K SA Google TV"** in this house. It uses Google's **Android TV Remote protocol v2** over Wi-Fi — the same protocol as the official Google TV app — so there is no IR blaster, Bluetooth pairing, root, or ADB needed at runtime.
 
-**Download:** [VEZZ Remote 0.3.7 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.7) (debug-signed sideload build).
+**Download:** [VEZZ Remote 0.3.8 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.8) (debug-signed sideload build).
 
 The app was built because the supplied Bluetooth remote is slow to wake and its buttons need a hard press. This remote keeps one TLS connection open, has large touch targets, and lets you type on the phone's keyboard.
 
@@ -13,8 +13,11 @@ The app was built because the supplied Bluetooth remote is slow to wake and its 
 - Seamless circular D-pad: touch anywhere in the right quadrant for Right, and so on, with a large 84 dp OK center.
 - Seamless volume rocker: volume up, volume down and mute zones in one pill.
 - Hold volume up/down for slow, deliberate steps; a tap is exactly one step.
-- Now-playing card with title, channel, state, progress, and centered rewind / play-pause / forward controls.
+- Now-playing card with title, channel, state, progress, and centered previous / rewind / play-pause / forward / next controls. Hold rewind or forward to seek.
+- Long-press OK, Back, Home and Menu for their long-press TV actions.
 - Voice search: tap the mic, speak into the phone, and the TV opens Google Assistant voice search.
+- Editable favorites and a Recent filter in the Apps tab; long-press an app to pin or unpin it.
+- Clipboard Paste button in the keyboard sheet, plus a brief `LAUNCHING …` confirmation when opening an app.
 - Back, Home, Menu, media, power, inputs and HDMI 1–3 keys.
 - Keep-screen-awake and left-handed options in Settings.
 - Phone keyboard sheet for the TV's focused text field; it focuses the field and opens the phone IME automatically.
@@ -32,7 +35,10 @@ Tested against the HKC/VEZZ TV:
 - Pairing with the on-screen code, and reconnecting after an app restart **without another code**.
 - D-pad, Back/Home/Menu/Input/TV settings, volume and mute.
 - Seamless D-pad quadrants and center OK verified; volume tap = 1 step, 2.2 s hold = 2 steps; mute toggles.
-- Transport controls in the now-playing card and the now-playing progress line.
+- Transport controls in the now-playing card, including previous/next, and hold-to-seek on rewind/forward.
+- Long-press Back opened ABEMA's navigation menu on the TV; OK/Home/Menu use the same protocol direction.
+- Favorites toggle by long-pressing an app; the Recent filter tracks launched apps.
+- Clipboard Paste appears in the keyboard sheet; app launches show a short `LAUNCHING …` line.
 - Voice search opens the TV's Google Assistant voice prompt; the app streams 8 kHz mono audio and closes the session cleanly.
 - Real-phone voice search verified on the Vivo: the TV heard a spoken weather question and answered with the Tokyo forecast.
 - Reconnect state, keep-screen-awake, and scroll passthrough verified.
@@ -47,9 +53,9 @@ Tested against the HKC/VEZZ TV:
 - Updating either phone over an existing install kept its pairing and reconnected without a new PIN.
 - Prime Video, Disney+, Kodi and Netflix launched from the Vivo grid; the Samsung drove Home while the Vivo stayed connected.
 
-The Apps tab is a searchable grid with categories, favorites and a refresh action. It reads the full app list and real icons from the TV catalog endpoint described in [`docs/TV_CATALOG.md`](docs/TV_CATALOG.md), caching the icons on the phone. Until that endpoint is installed, it falls back to the bundled list and neutral letter tiles.
+The Apps tab is a searchable grid with categories, editable favorites, Recent and a refresh action. Long-press any app to pin or unpin it; launch it once and it appears under Recent. It reads the full app list and real icons from the TV catalog endpoint described in [`docs/TV_CATALOG.md`](docs/TV_CATALOG.md), caching the icons on the phone. Until that endpoint is installed, it falls back to the bundled list and neutral letter tiles.
 
-0.3.7 keeps the Swiss industrial control surface from 0.3.0 and fixes the daily-use details: the TV's real name (`Main TV`) replaces the `ATVREMOTE/<mac>` certificate name, the catalog removes duplicate HDO Box entries and the awkward `MultiMediaPlayer` label, the keyboard sheet opens with the IME ready, and a dropped link reconnects automatically. The idle link stays up without a client heartbeat: the TV treats client messages as activity and stops pinging, so the app relies on the TV's own ping cadence and no fixed socket read timeout. On the narrower Samsung, the status line is just `CONNECTED` and the TV settings key is `SYSTEM` so neither wraps. 0.3.7 removes the redundant header icons, horizontal volume bar, D-pad crosshair and lower media strip; centers the transport controls in the now-playing card; adds a reconnect state, a keep-screen-awake setting, and phone-microphone voice search through the remote protocol. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
+0.3.8 keeps the Swiss industrial control surface from 0.3.0 and fixes the daily-use details: the TV's real name (`Main TV`) replaces the `ATVREMOTE/<mac>` certificate name, the catalog removes duplicate HDO Box entries and the awkward `MultiMediaPlayer` label, the keyboard sheet opens with the IME ready, and a dropped link reconnects automatically. The idle link stays up without a client heartbeat: the TV treats client messages as activity and stops pinging, so the app relies on the TV's own ping cadence and no fixed socket read timeout. On the narrower Samsung, the status line is just `CONNECTED` and the TV settings key is `SYSTEM` so neither wraps. 0.3.8 adds long-press TV keys, editable favorites and Recent, previous/next and hold-to-seek media controls, clipboard Paste, and app-launch feedback. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
 
 ## Requirements
 
@@ -62,12 +68,12 @@ The Apps tab is a searchable grid with categories, favorites and a refresh actio
 
 ## Install (sideload)
 
-1. Copy `dist/vezz-remote-0.3.7.apk` to the phone (or use `adb install -r`).
+1. Copy `dist/vezz-remote-0.3.8.apk` to the phone (or use `adb install -r`).
 2. Open the APK and allow installs from that source when prompted.
 3. Turn the TV on and make sure the phone is on the same Wi-Fi.
 
 ```bash
-adb install -r dist/vezz-remote-0.3.7.apk
+adb install -r dist/vezz-remote-0.3.8.apk
 ```
 
 The APK is signed with the standard Android debug key. That is fine for a personal sideload; it is not a Play Store release.
@@ -129,7 +135,7 @@ Voice search depends on the TV's Google Assistant and its Android TV Remote Serv
 
 ## Keyboard
 
-The keyboard sheet sends text through the remote protocol's IME messages. **Focus a text field on the TV first** (for example, the search box in SmartTube or YouTube), tap **Keyboard**, then type and press **Send** or **Send + Enter**. The sheet now focuses its own text field and opens the phone IME by itself.
+The keyboard sheet sends text through the remote protocol's IME messages. **Focus a text field on the TV first** (for example, the search box in SmartTube or YouTube), tap **Keyboard**, then type and press **Send** or **Send + Enter**. The sheet focuses its own text field and opens the phone IME by itself. **Paste** fills the field from the phone clipboard.
 
 Some TV apps draw their own keyboard and cannot receive text this way. In that case, use the app's own keyboard with the D-pad, or use the mic button for voice search. The remote protocol does not expose a universal text field.
 

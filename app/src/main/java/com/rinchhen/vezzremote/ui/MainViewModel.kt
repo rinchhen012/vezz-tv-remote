@@ -20,6 +20,7 @@ import com.rinchhen.vezzremote.protocol.PairingCrypto
 import com.rinchhen.vezzremote.protocol.DialClient
 import com.rinchhen.vezzremote.protocol.RemoteClient
 import com.rinchhen.vezzremote.protocol.RemoteKey
+import com.rinchhen.vezzremote.proto.remote.RemoteDirection
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -92,8 +93,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _keepScreenOn = MutableStateFlow(store.keepScreenOn)
     val keepScreenOn = _keepScreenOn.asStateFlow()
 
-    private val _apps = MutableStateFlow(AppCatalog.apps)
+    private val _apps = MutableStateFlow(
+        AppCatalog.apps.map { it.copy(favorite = it.packageName in store.favoritePackages) },
+    )
     val apps = _apps.asStateFlow()
+
+    private val _recentPackages = MutableStateFlow(store.recentPackages)
+    val recentPackages = _recentPackages.asStateFlow()
 
     private val _nowPlaying = MutableStateFlow<TvCatalogClient.NowPlaying?>(null)
     val nowPlaying = _nowPlaying.asStateFlow()
@@ -363,6 +369,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         remoteClient?.sendKey(key)
     }
 
+    fun sendKeyLongStart(key: RemoteKey) {
+        remoteClient?.sendKey(key, RemoteDirection.START_LONG)
+    }
+
+    fun sendKeyLongEnd(key: RemoteKey) {
+        remoteClient?.sendKey(key, RemoteDirection.END_LONG)
+    }
+
+    fun toggleFavorite(app: TvApp) {
+        val favorites = store.toggleFavorite(app.packageName)
+        _apps.value = _apps.value.map {
+            it.copy(favorite = it.packageName in favorites)
+        }
+    }
+
     fun sendText(text: String) {
         remoteClient?.sendText(text)
     }
@@ -487,6 +508,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun launchApp(app: TvApp) {
+        _recentPackages.value = store.recordRecent(app.packageName)
         if (app.packageName == "com.netflix.ninja") {
             launchDial("Netflix")
         } else {
@@ -513,7 +535,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val remote = catalog.apps
             val merged = remote.map { app ->
                 app.copy(
-                    favorite = app.favorite || AppCatalog.favorites.any { it.packageName == app.packageName },
+                    favorite = app.packageName in store.favoritePackages,
                 )
             }
             val context = getApplication<Application>().applicationContext

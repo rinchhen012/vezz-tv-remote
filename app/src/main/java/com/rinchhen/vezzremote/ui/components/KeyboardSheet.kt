@@ -1,5 +1,7 @@
 package com.rinchhen.vezzremote.ui.components
 
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import com.rinchhen.vezzremote.ui.theme.Acid
@@ -46,6 +49,8 @@ fun KeyboardSheet(
     var text by rememberSaveable { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -123,6 +128,16 @@ fun KeyboardSheet(
             ) {
                 TextButton(onClick = onClear) {
                     Text("CLEAR TV FIELD", style = MaterialTheme.typography.labelSmall, color = PaperMuted)
+                }
+                TextButton(
+                    onClick = {
+                        val clip = clipboard?.primaryClip
+                        if (clip != null && clip.itemCount > 0) {
+                            clip.getItemAt(0)?.text?.let { text = it.toString() }
+                        }
+                    },
+                ) {
+                    Text("PASTE", style = MaterialTheme.typography.labelSmall, color = PaperMuted)
                 }
                 TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
                     Text("DONE", style = MaterialTheme.typography.labelSmall, color = Acid)

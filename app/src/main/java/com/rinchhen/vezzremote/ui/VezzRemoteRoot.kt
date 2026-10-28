@@ -78,6 +78,7 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
     val keepScreenOn by viewModel.keepScreenOn.collectAsStateWithLifecycle()
     val identityReady by viewModel.identityReady.collectAsStateWithLifecycle()
     val apps by viewModel.apps.collectAsStateWithLifecycle()
+    val recentPackages by viewModel.recentPackages.collectAsStateWithLifecycle()
     val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
     val voiceState by viewModel.voiceState.collectAsStateWithLifecycle()
 
@@ -133,6 +134,8 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
                     nowPlaying = nowPlaying,
                     voiceState = voiceState,
                     onKey = viewModel::sendKey,
+                    onKeyLongStart = viewModel::sendKeyLongStart,
+                    onKeyLongEnd = viewModel::sendKeyLongEnd,
                     onText = viewModel::sendText,
                     onTextAndEnter = viewModel::sendTextAndEnter,
                     onClear = viewModel::clearText,
@@ -145,7 +148,9 @@ fun VezzRemoteRoot(viewModel: MainViewModel) {
                 Screen.Apps -> AppsContent(
                     apps = apps,
                     currentApp = currentApp,
+                    recentPackages = recentPackages,
                     onLaunchApp = viewModel::launchApp,
+                    onToggleFavorite = viewModel::toggleFavorite,
                     onRefresh = viewModel::refreshCatalog,
                 )
 

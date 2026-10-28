@@ -83,12 +83,15 @@ import com.rinchhen.vezzremote.ui.theme.PaperMuted
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.atan2
 import kotlin.math.hypot
 
 @Composable
 fun Dpad(
     onKey: (RemoteKey) -> Unit,
+    onLongStart: (RemoteKey) -> Unit,
+    onLongEnd: (RemoteKey) -> Unit,
     haptics: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -116,15 +119,37 @@ fun Dpad(
                     if (zone == null) return@awaitEachGesture
                     pressed = zone
                     var dragged = false
+                    var longStarted = false
+                    val longPressDeadline =
+                        System.currentTimeMillis() + viewConfiguration.longPressTimeoutMillis
                     while (true) {
-                        val event = awaitPointerEvent()
+                        val event = if (zone == DpadZone.Ok && !longStarted) {
+                            val remaining = longPressDeadline - System.currentTimeMillis()
+                            if (remaining > 0) {
+                                withTimeoutOrNull(remaining) { awaitPointerEvent() }
+                            } else {
+                                null
+                            }
+                        } else {
+                            awaitPointerEvent()
+                        }
+                        if (event == null) {
+                            longStarted = true
+                            if (haptics) {
+                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            }
+                            onLongStart(RemoteKey.Ok)
+                            continue
+                        }
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         if (change.isConsumed) {
                             dragged = true
                             break
                         }
                         if (!change.pressed) {
-                            if (!dragged) {
+                            if (longStarted) {
+                                onLongEnd(RemoteKey.Ok)
+                            } else if (!dragged) {
                                 change.consume()
                                 if (haptics) {
                                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -138,6 +163,7 @@ fun Dpad(
                             break
                         }
                     }
+                    if (dragged && longStarted) onLongEnd(RemoteKey.Ok)
                     pressed = null
                 }
             }
@@ -442,6 +468,8 @@ private fun VolumeZoneBox(
 @Composable
 fun ActionGrid(
     onKey: (RemoteKey) -> Unit,
+    onLongStart: (RemoteKey) -> Unit,
+    onLongEnd: (RemoteKey) -> Unit,
     onPower: () -> Unit,
     haptics: Boolean,
     modifier: Modifier = Modifier,
@@ -457,6 +485,8 @@ fun ActionGrid(
                 { onKey(RemoteKey.Back) },
                 Modifier.weight(1f),
                 haptics = haptics,
+                onLongStart = { onLongStart(RemoteKey.Back) },
+                onLongEnd = { onLongEnd(RemoteKey.Back) },
             )
             Keycap(
                 Icons.Outlined.Home,
@@ -464,6 +494,8 @@ fun ActionGrid(
                 { onKey(RemoteKey.Home) },
                 Modifier.weight(1f),
                 haptics = haptics,
+                onLongStart = { onLongStart(RemoteKey.Home) },
+                onLongEnd = { onLongEnd(RemoteKey.Home) },
             )
             Keycap(
                 Icons.Outlined.Menu,
@@ -471,6 +503,8 @@ fun ActionGrid(
                 { onKey(RemoteKey.Menu) },
                 Modifier.weight(1f),
                 haptics = haptics,
+                onLongStart = { onLongStart(RemoteKey.Menu) },
+                onLongEnd = { onLongEnd(RemoteKey.Menu) },
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
