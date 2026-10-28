@@ -20,11 +20,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import com.rinchhen.vezzremote.ui.theme.Acid
 import com.rinchhen.vezzremote.ui.theme.Ink1
@@ -42,7 +44,8 @@ fun KeyboardSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var text by rememberSaveable { mutableStateOf("") }
-    val focusRequester = FocusRequester()
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -129,6 +132,11 @@ fun KeyboardSheet(
     }
 
     LaunchedEffect(Unit) {
+        // Let the sheet window finish laying out before asking for focus; requesting
+        // it in the same frame can leave the IME closed.
+        kotlinx.coroutines.delay(400)
         focusRequester.requestFocus()
+        kotlinx.coroutines.delay(80)
+        keyboard?.show()
     }
 }

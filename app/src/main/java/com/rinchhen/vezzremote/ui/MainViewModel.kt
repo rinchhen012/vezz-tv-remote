@@ -21,6 +21,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -96,6 +97,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var pairingJob: Job? = null
     private var pendingPin: CompletableDeferred<String>? = null
     private var pairingDevice: TvDevice? = null
+    private var reconnectJob: Job? = null
+    private var reconnectAttempt = 0
 
     init {
         discovery.start()
@@ -136,13 +139,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _pairing.value = PairingState.NeedsPin(device)
                     withTimeout(120_000) { deferred.await() }
                 }
+                val serverName = result.serverName
+                    .substringAfter("CN=", "")
+                    .substringBefore(",")
+                    .trim()
+                // Android TV's self-signed cert carries ATVREMOTE/<mac>, which is not a
+                // name anyone wants to see. Keep the discovered/manual name until the
+                // catalog reports the TV's real device name ("Main TV").
+                val friendlyName = serverName.takeUnless {
+                    it.isBlank() ||
+                        it.startsWith("ATVREMOTE", ignoreCase = true) ||
+                        it.matches(Regex("^[0-9A-Fa-f:]{17}$"))
+                } ?: device.name
                 val paired = device.copy(
-                    name = result.serverName
-                        .substringAfter("CN=", "")
-                        .substringBefore(",")
-                        .trim()
-                        .ifBlank { device.name }
-                        .takeIf { device.id.startsWith("manual:") } ?: device.name,
+                    name = friendlyName,
                     serverFingerprint = result.serverFingerprint,
                     lastConnectedAt = System.currentTimeMillis(),
                 )
@@ -192,10 +202,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun pairManual(host: String) {
         val clean = host.trim().removePrefix("http://").removePrefix("https://").substringBefore("/")
         if (clean.isBlank()) return
+        // mDNS already knows the user-facing name and keeps the same identity if the
+        // TV's IP changes; use it when the address matches.
+        val discovered = discoveredDevices.value.firstOrNull { it.host == clean }
         pair(
-            TvDevice(
+            discovered ?: TvDevice(
                 id = "manual:$clean",
-                name = clean,
+                name = "Android TV",
                 host = clean,
             ),
         )
@@ -204,6 +217,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun connect(device: TvDevice) {
         val id = identity ?: return
         if (connectJob?.isActive == true && _activeDevice.value?.id == device.id) return
+        reconnectJob?.cancel()
+        reconnectJob = null
         connectJob?.cancel()
         connectJob = null
         remoteClient?.disconnect()
@@ -217,7 +232,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         remoteClient = client
         collectorJob?.cancel()
         collectorJob = viewModelScope.launch {
-            launch { client.state.collect { _remoteState.value = it } }
+            launch {
+                client.state.collect { state ->
+                    _remoteState.value = state
+                    when (state) {
+                        is RemoteClient.State.Connected -> reconnectAttempt = 0
+                        is RemoteClient.State.Error ->
+                            if (_activeDevice.value?.id == device.id) scheduleReconnect(device)
+                        else -> Unit
+                    }
+                }
+            }
             launch { client.volume.collect { _volume.value = it } }
             launch { client.currentApp.collect { _currentApp.value = it } }
             launch { client.isOn.collect { _isOn.value = it } }
@@ -227,7 +252,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun scheduleReconnect(device: TvDevice) {
+        if (reconnectJob?.isActive == true) return
+        reconnectJob = viewModelScope.launch {
+            val index = reconnectAttempt.coerceAtMost(RECONNECT_DELAYS.lastIndex)
+            reconnectAttempt = (index + 1).coerceAtMost(RECONNECT_DELAYS.lastIndex)
+            delay(RECONNECT_DELAYS[index])
+            if (_activeDevice.value?.id != device.id) return@launch
+            if (_remoteState.value is RemoteClient.State.Connected) return@launch
+            // Let a still-running connect attempt finish before starting another one.
+            connectJob?.join()
+            if (_activeDevice.value?.id != device.id) return@launch
+            if (_remoteState.value is RemoteClient.State.Connected) return@launch
+            reconnectJob = null
+            connect(device)
+        }
+    }
+
     fun reconnect() {
+        reconnectAttempt = 0
+        reconnectJob?.cancel()
+        reconnectJob = null
         connectJob?.cancel()
         connectJob = null
         remoteClient?.disconnect()
@@ -244,6 +289,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun disconnect() {
+        reconnectAttempt = 0
+        reconnectJob?.cancel()
+        reconnectJob = null
         connectJob?.cancel()
         connectJob = null
         remoteClient?.disconnect()
@@ -295,20 +343,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (host.isNullOrBlank()) return
         catalogJob?.cancel()
         catalogJob = viewModelScope.launch(Dispatchers.IO) {
-            val remote = TvCatalogClient.fetch(host) ?: return@launch
+            // A TV that just booted or just had its launcher updated may not be listening
+            // for the first second; one retry avoids showing the bundled fallback.
+            val catalog = TvCatalogClient.fetch(host)
+                ?: run {
+                    delay(1_500)
+                    TvCatalogClient.fetch(host)
+                }
+                ?: return@launch
+            val remote = catalog.apps
             val merged = remote.map { app ->
                 app.copy(
                     favorite = app.favorite || AppCatalog.favorites.any { it.packageName == app.packageName },
                 )
             }
             val context = getApplication<Application>().applicationContext
+            withContext(Dispatchers.Main) {
+                _apps.value = merged
+                catalog.deviceName?.let { applyDeviceName(host, it) }
+            }
             merged.forEach { app ->
                 AppIconCache.ensure(context, host, app.packageName)
             }
-            withContext(Dispatchers.Main) {
-                _apps.value = merged
-            }
         }
+    }
+
+    private fun applyDeviceName(host: String, name: String) {
+        val current = _activeDevice.value ?: return
+        if (current.host != host || current.name == name) return
+        val renamed = current.copy(name = name)
+        store.upsert(renamed)
+        _activeDevice.value = renamed
+        refreshPaired()
     }
 
     fun launchDial(appName: String) {
@@ -346,11 +412,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         discovery.stop()
         catalogJob?.cancel()
+        reconnectJob?.cancel()
         remoteClient?.disconnect()
         super.onCleared()
     }
 
     private fun refreshPaired() {
         _pairedDevices.value = store.devices()
+    }
+
+    private companion object {
+        val RECONNECT_DELAYS = longArrayOf(1_000L, 2_000L, 5_000L, 10_000L, 20_000L, 30_000L)
     }
 }

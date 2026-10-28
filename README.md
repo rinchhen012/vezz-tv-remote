@@ -2,7 +2,7 @@
 
 A small, local-only Android remote for the **HKC / VEZZ "4K SA Google TV"** in this house. It uses Google's **Android TV Remote protocol v2** over Wi-Fi — the same protocol as the official Google TV app — so there is no IR blaster, Bluetooth pairing, root, or ADB needed at runtime.
 
-**Download:** [VEZZ Remote 0.3.0 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.0) (debug-signed sideload build).
+**Download:** [VEZZ Remote 0.3.1 APK](https://github.com/rinchhen012/vezz-tv-remote/releases/tag/v0.3.1) (debug-signed sideload build).
 
 The app was built because the supplied Bluetooth remote is slow to wake and its buttons need a hard press. This remote keeps one TLS connection open, has large touch targets, and lets you type on the phone's keyboard.
 
@@ -11,8 +11,9 @@ The app was built because the supplied Bluetooth remote is slow to wake and its 
 - One-time pairing with the 6-character code shown on the TV.
 - Reconnects on app launch and on resume **without asking for the code again**.
 - Large D-pad, Back, Home, Menu, OK, volume, mute, media keys, power, inputs and HDMI 1–3.
-- Phone keyboard sheet for the TV's focused text field.
-- One-tap app shortcuts: Netflix, SmartTube, Prime Video, YouTube, Disney+ and Kodi.
+- Phone keyboard sheet for the TV's focused text field; it focuses the field and opens the phone IME automatically.
+- A full app grid with the TV's real app names and icons, served by the CleanYourTV launcher on the TV.
+- Launch any app from the grid; Netflix uses DIAL, the rest use the launcher's `market://launch` handler.
 - Current app, TV volume and screen state in the remote screen.
 - mDNS discovery (`_androidtvremote2._tcp`) plus a manual IP fallback.
 - Multiple TVs and multiple phones (see below).
@@ -26,18 +27,19 @@ Tested against the HKC/VEZZ TV:
 - D-pad, Back/Home/Menu/Input/TV settings, volume and mute.
 - Current app, volume and screen state reported by the TV.
 - SmartTube launch through `market://launch`, and Netflix through DIAL.
+- Keyboard text into SmartTube's search field.
+- The TV catalog: 18 launchable apps, labels and real 192 px icons; duplicate installs are collapsed and the launcher itself is hidden.
 - Manual IP pairing from an emulator. mDNS discovery is implemented but still to be checked on a real phone.
 
 The Apps tab is a searchable grid with categories, favorites and a refresh action. It reads the full app list and real icons from the TV catalog endpoint described in [`docs/TV_CATALOG.md`](docs/TV_CATALOG.md), caching the icons on the phone. Until that endpoint is installed, it falls back to the bundled list and neutral letter tiles.
 
-0.3.0 replaces the glass/purple skin with a Swiss industrial control surface: flat graphite panels, hairlines, acid-lime accent, Space Grotesk + IBM Plex Mono, tactile keys, and no decorative gradients. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
+0.3.1 keeps the Swiss industrial control surface from 0.3.0 and fixes the daily-use details: the TV's real name (`Main TV`) replaces the `ATVREMOTE/<mac>` certificate name, the catalog removes duplicate HDO Box entries and the awkward `MultiMediaPlayer` label, the keyboard sheet opens with the IME ready, and an idle session is kept alive and reconnected automatically. The design brief and tokens are in [`DESIGN.md`](DESIGN.md); the product context is in [`PRODUCT.md`](PRODUCT.md).
 
 Still to verify on the physical phones/TV:
 
-- Keyboard text into a TV text field (the sheet is implemented; the TV was off before this could be checked).
 - Two real phones paired at the same time. The per-install certificate names are already unique (reinstalling produced a different suffix), which is the requirement for coexistence.
-- The TV-side catalog endpoint and the real app icons.
 - Prime Video, Disney+ and Kodi shortcuts (same `market://launch` mechanism as SmartTube).
+- mDNS discovery on a real phone (the Mac resolves `Main TV`; the emulator's multicast is unreliable).
 
 ## Requirements
 
@@ -48,12 +50,12 @@ Still to verify on the physical phones/TV:
 
 ## Install (sideload)
 
-1. Copy `dist/vezz-remote-0.3.0.apk` to the phone (or use `adb install -r`).
+1. Copy `dist/vezz-remote-0.3.1.apk` to the phone (or use `adb install -r`).
 2. Open the APK and allow installs from that source when prompted.
 3. Turn the TV on and make sure the phone is on the same Wi-Fi.
 
 ```bash
-adb install -r dist/vezz-remote-0.3.0.apk
+adb install -r dist/vezz-remote-0.3.1.apk
 ```
 
 The APK is signed with the standard Android debug key. That is fine for a personal sideload; it is not a Play Store release.
@@ -109,7 +111,7 @@ If an app does not open:
 
 ## Keyboard
 
-The keyboard sheet sends text through the remote protocol's IME messages. **Focus a text field on the TV first** (for example, the search box in SmartTube or YouTube), then type and press **Send** or **Send + Enter**.
+The keyboard sheet sends text through the remote protocol's IME messages. **Focus a text field on the TV first** (for example, the search box in SmartTube or YouTube), tap **Keyboard**, then type and press **Send** or **Send + Enter**. The sheet now focuses its own text field and opens the phone IME by itself.
 
 Some TV apps draw their own keyboard and cannot receive text this way. In that case, use the app's own keyboard with the D-pad, or use the TV's voice search. The remote protocol does not expose a universal text field.
 
@@ -153,7 +155,8 @@ LICENSES/            Apache-2.0, MIT, and font OFL texts
 ## Known limitations
 
 - The remote service must be reachable. A TV that powers its Wi-Fi down in deep standby cannot be woken by this app; use the physical remote, HDMI-CEC or Wake-on-LAN.
-- App shortcuts depend on the launcher handling `market://launch`. The CleanYourTV launcher does; a third-party launcher may not.
+- App shortcuts depend on the launcher handling `market://launch`. The CleanYourTV launcher does; a third-party launcher may not. Netflix uses DIAL first.
+- The catalog endpoint is part of the CleanYourTV launcher distributed alongside this app. Without it, the Apps tab falls back to the bundled shortcuts.
 - Some apps ignore IME text; see the keyboard section.
 - This app is not affiliated with Google, HKC or VEZZ. Android TV and Google TV are trademarks of Google LLC.
 

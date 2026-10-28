@@ -13,15 +13,21 @@ Port **8080**, plain HTTP, local network only.
 
 ```json
 {
+  "name": "Main TV",
   "apps": [
     { "package": "com.netflix.ninja", "label": "Netflix", "category": "Media" },
-    { "package": "com.android.tv.settings", "label": "TV Settings", "category": "Tools" }
+    { "package": "com.android.tv.settings", "label": "Settings", "category": "Tools" }
   ]
 }
 ```
 
+- `name` is the TV's user-facing device name (the phone uses it for the saved device
+  instead of the `ATVREMOTE/<mac>` certificate name). Optional on older servers.
 - Include only apps with a leanback or launcher entry (apps the user can actually open).
 - `category` is `Media` or `Tools`; anything else is treated as `Media`.
+- The CleanYourTV implementation removes its own launcher entry, collapses duplicate
+  labels (keeping the most recently updated package), and shortens two long labels
+  (`MultiMediaPlayer` → `Media Player`, `U-NEXT for TV` → `U-NEXT`).
 - The phone matches known favorites by package name, so favorites stay favorites.
 
 ### `GET /icon/<package>`

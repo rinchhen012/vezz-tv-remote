@@ -25,7 +25,12 @@ import java.net.URL
 object TvCatalogClient {
     const val PORT = 8080
 
-    suspend fun fetch(host: String, timeoutMs: Int = 2_500): List<TvApp>? = withContext(Dispatchers.IO) {
+    data class Catalog(
+        val deviceName: String?,
+        val apps: List<TvApp>,
+    )
+
+    suspend fun fetch(host: String, timeoutMs: Int = 2_500): Catalog? = withContext(Dispatchers.IO) {
         val body = get("http://$host:$PORT/catalog", timeoutMs) ?: return@withContext null
         runCatching { parse(body) }.getOrNull()
     }
@@ -65,7 +70,7 @@ object TvCatalogClient {
         }
     }
 
-    private fun parse(body: String): List<TvApp> {
+    private fun parse(body: String): Catalog {
         val root = runCatching { JSONObject(body) }.getOrNull()
         val array = root?.optJSONArray("apps") ?: JSONArray(body)
         val result = buildList {
@@ -89,6 +94,7 @@ object TvCatalogClient {
                 }
             }
         }
-        return result.sortedBy { it.label.lowercase() }
+        val deviceName = root?.optString("name")?.trim()?.takeIf { it.isNotEmpty() }
+        return Catalog(deviceName = deviceName, apps = result.sortedBy { it.label.lowercase() })
     }
 }

@@ -58,5 +58,5 @@ like a well-made physical control surface, not a landing page or a demo.
 ## Assumptions
 
 - Dark theme only for this version; a light theme is not required.
-- Real app icons will replace the letter-tile fallback once the TV catalog is on.
+- Real app icons are served by the TV catalog endpoint; a bundled fallback remains.
 - The TV name is “Main TV”; the active device is shown in the header and Devices.

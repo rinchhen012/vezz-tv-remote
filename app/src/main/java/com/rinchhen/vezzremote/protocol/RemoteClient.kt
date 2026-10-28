@@ -23,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -73,6 +74,7 @@ class RemoteClient(
     private var output: OutputStream? = null
     private var writerJob: Job? = null
     private var readerJob: Job? = null
+    private var heartbeatJob: Job? = null
     private var channel: Channel<RemoteMessage>? = null
     private var ready: CompletableDeferred<Unit>? = null
 
@@ -141,6 +143,21 @@ class RemoteClient(
             } else {
                 Log.d(TAG, "Remote session configured")
                 _state.value = State.Connected(device.name)
+                heartbeatJob = scope.launch(Dispatchers.IO) {
+                    while (isActive && !manualClose) {
+                        delay(HEARTBEAT_MS)
+                        if (manualClose) break
+                        // A harmless session refresh. Some TV firmware stops pinging
+                        // an otherwise idle session; this keeps NAT and Wi-Fi awake.
+                        enqueue(
+                            RemoteMessage.newBuilder()
+                                .setRemoteSetActive(
+                                    RemoteSetActive.newBuilder().setActive(activeFeatures),
+                                )
+                                .build(),
+                        )
+                    }
+                }
                 true
             }
         } catch (e: CancellationException) {
@@ -200,6 +217,8 @@ class RemoteClient(
     fun disconnect() {
         manualClose = true
         ready = null
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         readerJob?.cancel()
         readerJob = null
         writerJob?.cancel()
@@ -261,6 +280,7 @@ class RemoteClient(
             }
 
             message.hasRemotePingRequest() -> {
+                if (BuildConfig.DEBUG) Log.v(TAG, "ping ${message.remotePingRequest.val1}")
                 enqueue(
                     RemoteMessage.newBuilder()
                         .setRemotePingResponse(
@@ -325,6 +345,8 @@ class RemoteClient(
         Log.w(TAG, "Remote session failed: $message")
         manualClose = true
         ready?.completeExceptionally(IllegalStateException(message))
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         readerJob?.cancel()
         writerJob?.cancel()
         channel?.close()
@@ -343,6 +365,7 @@ class RemoteClient(
         const val FEATURE_POWER = 32
         const val FEATURE_VOLUME = 64
         const val FEATURE_APP_LINK = 512
+        const val HEARTBEAT_MS = 20_000L
         const val REQUESTED_FEATURES =
             FEATURE_PING or FEATURE_KEY or FEATURE_IME or FEATURE_POWER or FEATURE_VOLUME or FEATURE_APP_LINK
     }
