@@ -290,13 +290,14 @@ private fun StatusStrip(
                     )
                     Text(
                         when {
-                            connected -> if (isOn) "CONNECTED · SCREEN ON" else "CONNECTED · STANDBY"
+                            connected -> "CONNECTED"
                             error != null -> "OFFLINE"
                             disconnected -> "NOT CONNECTED"
                             else -> "CONNECTING…"
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = PaperMuted,
+                        maxLines = 1,
                     )
                 }
             }

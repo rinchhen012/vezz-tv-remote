@@ -230,7 +230,7 @@ fun ActionGrid(
             )
             Keycap(
                 Icons.Outlined.Settings,
-                "TV settings",
+                "Setup",
                 { onKey(RemoteKey.Settings) },
                 Modifier.weight(1f),
                 haptics = haptics,
